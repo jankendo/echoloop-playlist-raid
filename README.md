@@ -2,10 +2,11 @@
 
 過去の自分と共演する、音楽増殖型リズム・ローグライト。
 
-本リポジトリは、添付された開発基準仕様に基づく **Phase 0〜2 のオフライン
-Vertical Slice** です。著作権のある音源や外部AI APIは使用しません。D・F・J・K
-で合成テスト曲を演奏すると、成功した入力が次のフレーズでエコーとして再演され、
-MISSはコラプションとして戻ってきます。
+本リポジトリは、添付された開発基準仕様に基づく **Phase 0〜3 のオフライン
+Vertical Slice** です。著作権のある音源、外部AI API、ネットワーク取得は使用
+しません。D・F・J・Kで合成テスト曲または登録したローカル曲を演奏すると、成功
+した入力が次のフレーズでエコーとして再演され、MISSはコラプションとして戻って
+きます。
 
 ## 現在実装済み
 
@@ -18,13 +19,32 @@ MISSはコラプションとして戻ってきます。
 - 設定のアトミック保存、バックアップ、破損隔離、構造化JSONLログ
 - オフラインPython `health_check` ワーカーとJSON Schema
 - 決定論的な120 BPM / 20小節の合成WAVと固定テスト譜面
+- `IMPORT LOCAL AUDIO`、ffprobe検証、SHA-256重複検出、FFmpeg変換
+- Beat This!接続点、librosaフォールバック、拍・小節頭・オンセット・帯域・構造解析
+- Easy / Normal / Hard / Expertの決定論的schema v2譜面、品質指標、Bot検査
+- BeatMapによる可変テンポ対応、Echo / Corruptionの音楽位置再演
+- atomic SongPack、外部`playback.ogg`、登録曲一覧、Beat Checkとuser override
 
-## 未実装（Phase 3以降）
+## Phase 3の使い方
 
-yt-dlpの実ダウンロード、YouTube/プレイリスト入力、FFmpeg、Beat This!、
-librosa、Demucs、音源解析、自動譜面生成、ライブラリ管理、Playlist Raid、
-レリック、オンライン連携は今回のスコープ外です。接続点は
-`docs/architecture.md` と `worker/src/echoloop_worker` に記録しています。
+1. FFmpeg / ffprobeをPATHへ追加します。
+2. Python 3.11で`pwsh -File tools/setup_analysis.ps1 -ComputePlatform Auto`を実行します。
+3. `godot.exe --path godot`を起動し、`IMPORT LOCAL AUDIO`から30秒〜15分の音源を選びます。
+4. probe結果を確認し、解析を開始します。進捗は日本語で表示されます。
+5. `SONG LIBRARY`で登録曲を選び、`BEAT CHECK`から波形・拍・小節頭と修正値を確認します。
+6. 生成したNormal譜面をPLAYします。元音源は変更・削除されません。
+
+Beat This!モデルがない場合は、ゲーム起動時にダウンロードせずlibrosaへフォールバック
+します。CPU/CUDAのセットアップ方法は[音源解析](docs/audio-analysis.md)と
+`tools/setup_analysis.ps1`を参照してください。
+
+## 今回の対象外（Phase 4以降）
+
+yt-dlpの実ダウンロード、YouTube/プレイリスト入力、ブラウザCookie、Demucs本番分離、
+Quality解析、Playlist Raid、レリック、オンラインランキング、Workshop、譜面共有、
+マルチプレイ、外部AI API、クラウド解析、テレメトリー、Python/FFmpeg/PyTorchを内包
+した製品版インストーラーは実装していません。将来の取得元は同じworker解析境界へ接続
+できます。
 
 ## 必要環境
 
@@ -42,6 +62,12 @@ GodotがPATHにない場合は、`tools/check_environment.ps1 -GodotPath <path>`
 python tools/generate_fixtures.py
 python -m venv worker/.venv
 worker/.venv/Scripts/python.exe -m pip install -e worker[dev]
+```
+
+音源解析環境（FFmpegは別途導入）:
+
+```powershell
+pwsh -File tools/setup_analysis.ps1 -ComputePlatform Auto
 ```
 
 依存関係を増やしたくない場合、ワーカー本体と標準ライブラリテストは次でも
@@ -94,9 +120,15 @@ pwsh -File tools/build_windows.ps1
 - [Windowsビルド](docs/build.md)
 - [トラブルシューティング](docs/troubleshooting.md)
 - [Phase 0〜2レポート](docs/phase-0-2-report.md)
+- [Phase 3実装計画](docs/implementation-plan-phase-3.md)
+- [ローカル音源インポート](docs/local-audio-import.md)
+- [音源解析](docs/audio-analysis.md)
+- [譜面生成](docs/chart-generation.md)
+- [BeatMap](docs/beat-map.md)
+- [SongPack](docs/song-pack.md)
+- [Phase 3レポート](docs/phase-3-report.md)
 
 ## ライセンス
 
 本プロジェクトのコードはMIT Licenseです。第三者表示は
 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) を参照してください。
-

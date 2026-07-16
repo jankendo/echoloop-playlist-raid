@@ -11,6 +11,7 @@ __pycache__/
 .ruff_cache/
 worker/.venv/
 worker/*.egg-info/
+worker/src/*.egg-info/
 
 # Build and user data
 dist/
@@ -32,4 +33,3 @@ Desktop.ini
 .env
 .env.*
 !.env.example
-

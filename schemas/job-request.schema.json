@@ -4,9 +4,9 @@
   "type": "object",
   "required": ["schema_version", "job_id", "job_type", "output_dir"],
   "properties": {
-    "schema_version": {"type": "integer", "const": 1},
+    "schema_version": {"type": "integer", "enum": [1, 2]},
     "job_id": {"type": "string", "minLength": 1},
-    "job_type": {"type": "string", "enum": ["health_check"]},
+    "job_type": {"type": "string", "enum": ["health_check", "probe_local_audio", "analyze_local_audio", "regenerate_charts"]},
     "output_dir": {"type": "string", "minLength": 1},
     "cancel_file": {"type": "string"},
     "payload": {"type": "object"}

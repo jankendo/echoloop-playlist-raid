@@ -5,7 +5,10 @@
 `tools/run_python_tests.ps1` sets `PYTHONPATH=worker/src` and runs pytest. It then runs
 ruff and mypy when those commands are available. The tests cover request validation,
 atomic status writing, cancellation, JSONL logging, deterministic WAV generation,
-schemas, and health-check completion.
+schemas, health-check completion, safe ffprobe/FFmpeg boundaries, variable tempo,
+fallback tracking, deterministic chart generation, SongPack atomicity, and user
+override inputs. `tools/run_phase3_e2e.py` exercises the real synthetic WAV through
+probe, conversion, analysis, four charts, and SongPack commit.
 
 ## Godot
 
@@ -21,5 +24,8 @@ and deterministic game-session outcomes.
 3. Let a phrase pass with misses; confirm Corruption appears in the next phrase.
 4. Play a phrase accurately; confirm a visible EchoTrack appears from the next phrase.
 5. Let the song finish; confirm Results, RETRY, and MAIN MENU.
-6. Open Settings and Diagnostics; save settings and run the local worker health check.
-
+6. Open Import Local Audio with a rights-cleared local file; confirm progress and
+   cancellation behavior.
+7. Open Song Library / Beat Check; confirm waveform, beats, downbeats, preview,
+   BPM/offset override, regeneration, and offline playback.
+8. Open Settings and Diagnostics; save settings and run the local worker health check.

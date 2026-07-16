@@ -29,7 +29,9 @@ var corruption_broken: int = 0
 var _assist_ms: float = 0.0
 
 func setup(chart_data: Dictionary, assist_ms: float = 0.0) -> bool:
-	chart = chart_data
+	chart = ChartLoader.new().normalize(chart_data)
+	if chart.is_empty():
+		return false
 	notes = chart.get("notes", []).duplicate(true)
 	_assist_ms = assist_ms
 	boss_max_hp = 100.0
@@ -52,8 +54,10 @@ func advance(time_ms: float) -> void:
 	var phrase_data := _phrase(current_phrase)
 	if phrase_data.is_empty():
 		return
-	var phase := (current_time_ms - float(phrase_data.start_ms)) / 500.0
-	for replay in echo_system.replay_events(current_phrase, phase, float(phrase_data.start_ms)):
+	var beat_map = chart.get("beat_map")
+	var phase: float = float(beat_map.time_to_phrase_relative(current_phrase, current_time_ms))
+	var phrase_beat_count := _phrase_beat_count(current_phrase)
+	for replay in echo_system.replay_events(current_phrase, phase, float(phrase_data.start_ms), beat_map, phrase_beat_count):
 		_apply_echo(replay)
 	for corruption in echo_system.corruption_for_phrase(current_phrase):
 		if not bool(corruption.get("announced", false)):
@@ -83,7 +87,9 @@ func handle_lane_input(lane: int, input_time_ms: float, pressed: bool = true) ->
 		_register_miss(note, lane)
 	else:
 		var phrase_data := _phrase(int(note.phrase))
-		echo_system.record_success(int(note.phrase), float(phrase_data.start_ms), float(note.time_ms), lane, str(note.type), str(note.id), judgement, int(note.get("duration_ms", 0)), str(note.get("chord_group_id", "")))
+		var beat_map = chart.get("beat_map")
+		var note_phase: float = float(beat_map.time_to_phrase_relative(int(note.phrase), float(note.time_ms)))
+		echo_system.record_success(int(note.phrase), float(phrase_data.start_ms), float(note.time_ms), lane, str(note.type), str(note.id), judgement, int(note.get("duration_ms", 0)), str(note.get("chord_group_id", "")), _phrase_beat_count(int(note.phrase)), note_phase)
 		var attack := 1.25 * TimingJudge.power(judgement)
 		boss_hp = maxf(0.0, boss_hp - attack)
 		total_normal_damage += attack
@@ -96,7 +102,12 @@ func handle_lane_input(lane: int, input_time_ms: float, pressed: bool = true) ->
 func handle_corruption_input(lane: int, input_time_ms: float) -> bool:
 	for item in echo_system.corruption_for_phrase(current_phrase):
 		var phrase_data := _phrase(current_phrase)
-		var target_time := float(phrase_data.start_ms) + float(item.beat_phase) * 500.0
+		var beat_map = chart.get("beat_map")
+		var target_phase := float(item.get("beat_phase", 0.0))
+		var source_count := float(item.get("source_phrase_beat_count", 0.0))
+		if source_count > 0.0 and not is_equal_approx(source_count, _phrase_beat_count(current_phrase)):
+			target_phase = float(item.get("normalized_phase", 0.0)) * _phrase_beat_count(current_phrase)
+		var target_time: float = float(beat_map.phrase_relative_to_time(current_phrase, target_phase))
 		if int(item.lane) == lane and absf(input_time_ms - target_time) <= 120.0:
 			echo_system.resolve_corruption(item, true)
 			corruption_broken += 1
@@ -143,8 +154,10 @@ func _register_miss(note: Dictionary, lane: int) -> void:
 	score_system.apply_judgement("MISS", 121.0, note.get("lanes", [lane]), _assist_ms > 0.0)
 	_apply_integrity_damage(6.0)
 	corruption_count += 1
-	var phrase_data := _phrase(int(note.phrase))
-	echo_system.record_miss(int(note.phrase), (float(note.time_ms) - float(phrase_data.start_ms)) / 500.0, lane, str(note.id))
+	var phrase_index := int(note.phrase)
+	var beat_map = chart.get("beat_map")
+	var phrase_data := _phrase(phrase_index)
+	echo_system.record_miss(phrase_index, beat_map.time_to_phrase_relative(phrase_index, float(note.time_ms)), lane, str(note.id), _phrase_beat_count(phrase_index))
 	judgement_applied.emit({"judgement": "MISS", "delta_ms": 121.0, "lane": lane, "note_id": note.id, "score": 0})
 
 func _release_hold(lane: int, input_time_ms: float) -> Dictionary:
@@ -196,6 +209,13 @@ func _phrase(index: int) -> Dictionary:
 		if int(phrase.id) == index:
 			return phrase
 	return {}
+
+func _phrase_beat_count(index: int) -> float:
+	var phrase := _phrase(index)
+	if phrase.has("beat_count"):
+		return maxf(1.0, float(phrase.beat_count))
+	var beat_map = chart.get("beat_map")
+	return maxf(1.0, beat_map.time_to_beat(float(phrase.end_ms)) - beat_map.time_to_beat(float(phrase.start_ms)))
 
 func _integrity_reset() -> void:
 	integrity = 100.0

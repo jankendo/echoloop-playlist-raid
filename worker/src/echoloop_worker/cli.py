@@ -6,13 +6,17 @@ import argparse
 import json
 import os
 import sys
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+from echoloop_worker.audio import AudioError
+from echoloop_worker.jobs.audio import run_analysis_job, run_probe_job, run_regenerate_job
 from echoloop_worker.jobs.health import run_health_check
 from echoloop_worker.logging.jsonl import write_event
+from echoloop_worker.song_pack import SongPackError
 
 
 class WorkerError(Exception):
@@ -23,12 +27,30 @@ class WorkerError(Exception):
         self.code = code
 
 
+JobHandler = Callable[[dict[str, Any], Callable[[str, float], None], Path | None], dict[str, Any]]
+JOB_REGISTRY: dict[str, JobHandler] = {
+    "probe_local_audio": run_probe_job,
+    "analyze_local_audio": run_analysis_job,
+    "regenerate_charts": run_regenerate_job,
+}
+
+
 def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     """Write JSON through a sibling temp file and replace the destination."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    try:
+        for attempt in range(20):
+            try:
+                os.replace(temporary, path)
+                return
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.05)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def read_request(path: Path) -> dict[str, Any]:
@@ -43,19 +65,22 @@ def read_request(path: Path) -> dict[str, Any]:
     missing = sorted(required - payload.keys())
     if missing:
         raise WorkerError("invalid_request", f"missing fields: {', '.join(missing)}")
-    if payload["schema_version"] != 1:
-        raise WorkerError("unsupported_schema", "schema_version must be 1")
-    if payload["job_type"] != "health_check":
+    if payload["schema_version"] not in {1, 2}:
+        raise WorkerError("unsupported_schema", "schema_version must be 1 or 2")
+    allowed = {"health_check", *JOB_REGISTRY.keys()}
+    if not isinstance(payload["job_type"], str) or payload["job_type"] not in allowed:
         raise WorkerError("unsupported_job", f"unsupported job_type: {payload['job_type']}")
     if not isinstance(payload["output_dir"], str) or not payload["output_dir"]:
         raise WorkerError("invalid_request", "output_dir must be a non-empty string")
+    if "payload" in payload and not isinstance(payload["payload"], dict):
+        raise WorkerError("invalid_request", "payload must be an object")
     return payload
 
 
 def status(job_id: str, job_type: str, state: str, message: str = "", **extra: Any) -> dict[str, Any]:
     """Build a status record."""
     return {
-        "schema_version": 1,
+        "schema_version": 1 if job_type == "health_check" else 2,
         "job_id": job_id,
         "job_type": job_type,
         "state": state,
@@ -76,24 +101,48 @@ def run(request_path: Path, status_path: Path, log_path: Path) -> int:
         job_type = str(request["job_type"])
         output_dir = Path(str(request["output_dir"]))
         cancel_file = Path(str(request.get("cancel_file", ""))) if request.get("cancel_file") else None
-        atomic_write_json(status_path, status(job_id, job_type, "running", "health check started"))
         write_event(log_path, "job_started", job_id=job_id, job_type=job_type)
         if cancel_file is not None and cancel_file.exists():
             atomic_write_json(status_path, status(job_id, job_type, "cancelled", "cancel file found"))
             write_event(log_path, "job_cancelled", job_id=job_id)
             return 2
         output_dir.mkdir(parents=True, exist_ok=True)
-        result = run_health_check()
-        atomic_write_json(output_dir / "health.json", result)
-        atomic_write_json(status_path, status(job_id, job_type, "completed", "health check complete", result=result))
+        if job_type == "health_check":
+            atomic_write_json(status_path, status(job_id, job_type, "running", "health check started"))
+            result = run_health_check()
+            atomic_write_json(output_dir / "health.json", result)
+            atomic_write_json(status_path, status(job_id, job_type, "completed", "health check complete", result=result))
+        else:
+            handler = JOB_REGISTRY[job_type]
+            payload = dict(request.get("payload", {}))
+
+            def update_stage(stage_name: str, progress: float) -> None:
+                atomic_write_json(
+                    status_path,
+                    status(
+                        job_id,
+                        job_type,
+                        "running",
+                        stage_name,
+                        stage=stage_name,
+                        message_key=f"job.{stage_name}",
+                        progress=max(0.0, min(1.0, progress)),
+                        error=None,
+                    ),
+                )
+
+            update_stage("validating_request", 0.0)
+            result = handler(payload, update_stage, cancel_file)
+            atomic_write_json(status_path, status(job_id, job_type, "completed", "completed", result=result, stage="completed", message_key="job.completed", error=None))
         write_event(log_path, "job_completed", job_id=job_id)
         return 0
-    except WorkerError as error:
+    except (WorkerError, AudioError, SongPackError) as error:
+        error_code = getattr(error, "code", "internal_error")
         atomic_write_json(status_path, status(job_id, job_type, "failed", str(error), error_code=error.code))
-        write_event(log_path, "job_failed", job_id=job_id, error_code=error.code)
+        write_event(log_path, "job_failed", job_id=job_id, error_code=error_code)
         return 1
     except Exception as error:  # pragma: no cover - final safety boundary
-        atomic_write_json(status_path, status(job_id, job_type, "failed", str(error), error_code="internal_error"))
+        atomic_write_json(status_path, status(job_id, job_type, "failed", str(error), error_code="internal_error", error=str(error)))
         write_event(log_path, "job_failed", job_id=job_id, error_code="internal_error")
         return 1
 
@@ -118,4 +167,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

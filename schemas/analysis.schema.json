@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "echoloop/analysis.schema.json",
+  "type": "object",
+  "required": ["schema_version", "audio_sha256", "duration_ms", "sample_rate", "beat_backend", "beats_ms", "downbeats_ms", "bpm_summary", "tempo_segments", "meter", "onset_events", "sections", "confidence", "warnings"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 2},
+    "audio_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "duration_ms": {"type": "number", "exclusiveMinimum": 0},
+    "sample_rate": {"type": "integer", "exclusiveMinimum": 0},
+    "loudness": {"type": "object"},
+    "peak": {"type": "number", "minimum": 0},
+    "silence_ranges": {"type": "array"},
+    "beat_backend": {"type": "string"},
+    "model": {"type": "string"},
+    "device": {"type": "string"},
+    "beats_ms": {"type": "array", "items": {"type": "number"}},
+    "downbeats_ms": {"type": "array", "items": {"type": "number"}},
+    "bpm_summary": {"type": "number", "exclusiveMinimum": 0},
+    "tempo_segments": {"type": "array"},
+    "meter": {"type": "integer", "minimum": 1, "maximum": 12},
+    "onset_events": {"type": "array"},
+    "band_energies": {"type": "object"},
+    "hpss": {"type": "object"},
+    "sections": {"type": "array"},
+    "waveform_peaks": {"type": "array", "items": {"type": "number"}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "dependency_versions": {"type": "object"},
+    "processing_duration_ms": {"type": "number", "minimum": 0}
+  },
+  "additionalProperties": true
+}
