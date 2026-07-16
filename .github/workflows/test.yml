@@ -25,11 +25,9 @@ jobs:
       - uses: chickensoft-games/setup-godot@v2
         with:
           version: 4.7.1
-          channel: stable
           use-dotnet: false
       - name: Generate fixtures
         run: python tools/generate_fixtures.py
       - name: Run Godot headless tests
         shell: pwsh
-        run: ./tools/run_godot_tests.ps1 -GodotPath godot
-
+        run: ./tools/run_godot_tests.ps1 -GodotPath $env:GODOT
