@@ -1,0 +1,35 @@
+# Godot generated state
+.godot/
+godot/.godot/
+godot/.godot-user/
+
+# Python generated state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+worker/.venv/
+worker/*.egg-info/
+
+# Build and user data
+dist/
+build/
+logs/
+user_data/
+*.pck
+*.exe
+*.zip
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# Local secrets
+.env
+.env.*
+!.env.example
+

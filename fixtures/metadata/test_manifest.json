@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "song_id": "echoloop-test-song",
+  "title": "Synthetic Crystal Pulse",
+  "artist": "ECHOLOOP Fixture Generator",
+  "duration_ms": 40500,
+  "audio_file": "test_song.wav",
+  "chart_file": "test_chart.json",
+  "content_sha256": "384ba4a72087682de5be138d4c863825b0d5dc3bbc64517cddeb0833bd80ded0",
+  "source": "generated-local-fixture"
+}

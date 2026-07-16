@@ -1,0 +1,1210 @@
+{
+  "schema_version": 1,
+  "chart_id": "test-chart-v1",
+  "seed": 20260716,
+  "bpm": 120,
+  "beats_per_bar": 4,
+  "duration_ms": 40500,
+  "phrases": [
+    {
+      "id": 0,
+      "start_ms": 0,
+      "end_ms": 8000,
+      "start_beat": 0,
+      "end_beat": 16,
+      "bars": 4,
+      "section": "main"
+    },
+    {
+      "id": 1,
+      "start_ms": 8000,
+      "end_ms": 16000,
+      "start_beat": 16,
+      "end_beat": 32,
+      "bars": 4,
+      "section": "main"
+    },
+    {
+      "id": 2,
+      "start_ms": 16000,
+      "end_ms": 24000,
+      "start_beat": 32,
+      "end_beat": 48,
+      "bars": 4,
+      "section": "main"
+    },
+    {
+      "id": 3,
+      "start_ms": 24000,
+      "end_ms": 32000,
+      "start_beat": 48,
+      "end_beat": 64,
+      "bars": 4,
+      "section": "chorus"
+    },
+    {
+      "id": 4,
+      "start_ms": 32000,
+      "end_ms": 40000,
+      "start_beat": 64,
+      "end_beat": 80,
+      "bars": 4,
+      "section": "main"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n000",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 0,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": true,
+      "section": "intro"
+    },
+    {
+      "id": "n001",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 1000,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n002",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 1250,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n003",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 2000,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": true,
+      "section": "intro"
+    },
+    {
+      "id": "n004",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 3000,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n005",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 3250,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n006",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 4000,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": true,
+      "section": "intro"
+    },
+    {
+      "id": "n007",
+      "type": "hold",
+      "lane": 3,
+      "time_ms": 4125,
+      "duration_ms": 750,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n008",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 4500,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n009",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 5000,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n010",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 5250,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n011",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 5500,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n012",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 6000,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": true,
+      "section": "intro"
+    },
+    {
+      "id": "n013",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 6250,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro",
+      "lanes": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "n014",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 6500,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n015",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 7000,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n016",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 7250,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n017",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 7500,
+      "duration_ms": 0,
+      "phrase": 0,
+      "accent": false,
+      "section": "intro"
+    },
+    {
+      "id": "n018",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 8000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n019",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 8500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n020",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 9000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n021",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 9250,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n022",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 9500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n023",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 10000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n024",
+      "type": "chord",
+      "lane": 1,
+      "time_ms": 10250,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse",
+      "lanes": [
+        0,
+        1,
+        3
+      ]
+    },
+    {
+      "id": "n025",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 10500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n026",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 11000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n027",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 11250,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n028",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 11500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n029",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 12000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n030",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 12250,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": true,
+      "section": "verse",
+      "lanes": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "n031",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 12500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n032",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 13000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n033",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 13250,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n034",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 13500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n035",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 14000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n036",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 14250,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse",
+      "lanes": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "n037",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 14500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n038",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 15000,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n039",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 15250,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n040",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 15500,
+      "duration_ms": 0,
+      "phrase": 1,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n041",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 16000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n042",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 16500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n043",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 17000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n044",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 17250,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n045",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 17500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n046",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 18000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n047",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 18500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n048",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 19000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n049",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 19250,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n050",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 19500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n051",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 20000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n052",
+      "type": "hold",
+      "lane": 3,
+      "time_ms": 20125,
+      "duration_ms": 750,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n053",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 20500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n054",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 21000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n055",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 21250,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n056",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 21500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n057",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 22000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n058",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 22250,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse",
+      "lanes": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "n059",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 22500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n060",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 23000,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n061",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 23250,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n062",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 23500,
+      "duration_ms": 0,
+      "phrase": 2,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n063",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 24000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": true,
+      "section": "chorus"
+    },
+    {
+      "id": "n064",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 24250,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": true,
+      "section": "chorus",
+      "lanes": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "n065",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 24500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n066",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 25000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n067",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 25250,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n068",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 25500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n069",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 26000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": true,
+      "section": "chorus"
+    },
+    {
+      "id": "n070",
+      "type": "chord",
+      "lane": 1,
+      "time_ms": 26250,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus",
+      "lanes": [
+        0,
+        1,
+        3
+      ]
+    },
+    {
+      "id": "n071",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 26500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n072",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 27000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n073",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 27250,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n074",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 27500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n075",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 28000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": true,
+      "section": "chorus"
+    },
+    {
+      "id": "n076",
+      "type": "hold",
+      "lane": 3,
+      "time_ms": 28125,
+      "duration_ms": 750,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n077",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 28500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n078",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 29000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n079",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 29250,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n080",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 29500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n081",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 30000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": true,
+      "section": "chorus"
+    },
+    {
+      "id": "n082",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 30250,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus",
+      "lanes": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "n083",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 30500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n084",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 31000,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n085",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 31250,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n086",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 31500,
+      "duration_ms": 0,
+      "phrase": 3,
+      "accent": false,
+      "section": "chorus"
+    },
+    {
+      "id": "n087",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 32000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n088",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 32250,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": true,
+      "section": "verse",
+      "lanes": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "n089",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 32500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n090",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 33000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n091",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 33250,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n092",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 33500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n093",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 34000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n094",
+      "type": "chord",
+      "lane": 1,
+      "time_ms": 34250,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse",
+      "lanes": [
+        0,
+        1,
+        3
+      ]
+    },
+    {
+      "id": "n095",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 34500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n096",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 35000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n097",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 35250,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n098",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 35500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n099",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 36000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n100",
+      "type": "chord",
+      "lane": 0,
+      "time_ms": 36250,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse",
+      "lanes": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "n101",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 36500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n102",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 37000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n103",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 37250,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n104",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 37500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n105",
+      "type": "tap",
+      "lane": 1,
+      "time_ms": 38000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": true,
+      "section": "verse"
+    },
+    {
+      "id": "n106",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 38500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n107",
+      "type": "tap",
+      "lane": 3,
+      "time_ms": 39000,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n108",
+      "type": "tap",
+      "lane": 0,
+      "time_ms": 39250,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    },
+    {
+      "id": "n109",
+      "type": "tap",
+      "lane": 2,
+      "time_ms": 39500,
+      "duration_ms": 0,
+      "phrase": 4,
+      "accent": false,
+      "section": "verse"
+    }
+  ]
+}

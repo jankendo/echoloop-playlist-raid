@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "echoloop/manifest.schema.json",
+  "type": "object",
+  "required": ["schema_version", "song_id", "title", "duration_ms", "audio_file", "chart_file"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "song_id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "artist": {"type": "string"},
+    "duration_ms": {"type": "integer", "minimum": 1},
+    "audio_file": {"type": "string", "minLength": 1},
+    "chart_file": {"type": "string", "minLength": 1},
+    "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "source": {"type": "string"}
+  },
+  "additionalProperties": false
+}

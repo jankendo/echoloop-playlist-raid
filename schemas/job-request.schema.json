@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "echoloop/job-request.schema.json",
+  "type": "object",
+  "required": ["schema_version", "job_id", "job_type", "output_dir"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "job_id": {"type": "string", "minLength": 1},
+    "job_type": {"type": "string", "enum": ["health_check"]},
+    "output_dir": {"type": "string", "minLength": 1},
+    "cancel_file": {"type": "string"},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}

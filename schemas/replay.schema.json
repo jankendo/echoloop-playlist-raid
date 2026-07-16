@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "echoloop/replay.schema.json",
+  "type": "object",
+  "required": ["schema_version", "song_id", "chart_id", "seed", "events"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "song_id": {"type": "string"},
+    "chart_id": {"type": "string"},
+    "seed": {"type": "integer"},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["beat_phase", "lane", "event_type", "judgement", "power"],
+        "properties": {
+          "beat_phase": {"type": "number", "minimum": 0},
+          "lane": {"type": "integer", "minimum": 0, "maximum": 3},
+          "event_type": {"type": "string", "enum": ["tap", "hold", "chord"]},
+          "judgement": {"type": "string"},
+          "power": {"type": "number", "minimum": 0, "maximum": 1},
+          "source_note_id": {"type": "string"},
+          "hold_duration_ms": {"type": "integer", "minimum": 0},
+          "chord_group_id": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
