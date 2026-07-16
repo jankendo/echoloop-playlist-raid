@@ -2,6 +2,8 @@ class_name ChartLoader
 extends RefCounted
 ## Data-driven chart loader and defensive Phase 1–2 validator.
 
+const BEAT_MAP_SCRIPT := preload("res://scripts/core/beat_map.gd")
+
 var last_error: String = ""
 
 func load_chart(path: String) -> Dictionary:
@@ -20,15 +22,28 @@ func load_chart(path: String) -> Dictionary:
 	return parsed
 
 func validate(chart: Dictionary) -> bool:
-	if int(chart.get("schema_version", 0)) != 1:
+	var schema_version := int(chart.get("schema_version", 0))
+	if schema_version not in [1, 2]:
 		return _fail("unsupported schema_version")
-	for key in ["chart_id", "seed", "bpm", "beats_per_bar", "duration_ms", "phrases", "notes"]:
+	for key in ["chart_id", "duration_ms", "phrases", "notes"]:
 		if not chart.has(key):
 			return _fail("missing chart field: " + key)
-	if float(chart.bpm) <= 0.0 or int(chart.beats_per_bar) != 4 or int(chart.duration_ms) <= 0:
+	if schema_version == 1 and (not chart.has("seed") or not chart.has("bpm") or not chart.has("beats_per_bar")):
+		return _fail("schema v1 timing fields are missing")
+	if schema_version == 1 and (float(chart.bpm) <= 0.0 or int(chart.beats_per_bar) != 4):
 		return _fail("invalid tempo, meter, or duration")
-	if chart.phrases.is_empty() or chart.notes.is_empty():
+	if schema_version == 2:
+		var timing: Dictionary = chart.get("timing", {})
+		if timing.is_empty() or not timing.has("beats_ms") or Array(timing.beats_ms).is_empty():
+			return _fail("schema v2 timing map is missing")
+	if int(chart.duration_ms) <= 0 or chart.phrases.is_empty() or chart.notes.is_empty():
 		return _fail("chart must contain phrases and notes")
+	if schema_version == 2:
+		var timing_data: Dictionary = chart.get("timing", {})
+		var beats: Array = timing_data.get("beats_ms", [])
+		for index in range(beats.size()):
+			if float(beats[index]) < 0.0 or (index > 0 and float(beats[index]) <= float(beats[index - 1])):
+				return _fail("schema v2 beats must be strictly increasing")
 	var previous_time := -1
 	var note_ids: Dictionary = {}
 	for note in chart.notes:
@@ -58,7 +73,45 @@ func validate(chart: Dictionary) -> bool:
 				return _fail("chord lanes are invalid: " + str(note.id))
 	return true
 
+func load_runtime_chart(path: String) -> Dictionary:
+	var chart := load_chart(path)
+	return normalize(chart) if not chart.is_empty() else {}
+
+func normalize(chart: Dictionary) -> Dictionary:
+	if chart.is_empty() or not validate(chart):
+		return {}
+	var runtime := chart.duplicate(true)
+	var beats: Array = []
+	var downbeats: Array = []
+	var segments: Array = []
+	var meter := 4
+	if int(chart.get("schema_version", 1)) == 2:
+		var timing: Dictionary = chart.get("timing", {})
+		beats = timing.get("beats_ms", []).duplicate()
+		downbeats = timing.get("downbeats_ms", []).duplicate()
+		segments = timing.get("tempo_segments", []).duplicate(true)
+		meter = int(timing.get("beats_per_bar", 4))
+	else:
+		meter = int(chart.get("beats_per_bar", 4))
+		var interval := 60000.0 / float(chart.get("bpm", 120.0))
+		var cursor := 0.0
+		while cursor <= float(chart.duration_ms):
+			beats.append(cursor)
+			if beats.size() % meter == 1:
+				downbeats.append(cursor)
+			cursor += interval
+		segments = [{"start_ms": 0.0, "end_ms": float(chart.duration_ms), "bpm": float(chart.get("bpm", 120.0))}]
+	var beat_map = BEAT_MAP_SCRIPT.new()
+	if not beat_map.configure(beats, downbeats, segments, meter, chart.phrases):
+		last_error = "invalid BeatMap: " + beat_map.last_error
+		return {}
+	runtime["beats"] = beats
+	runtime["downbeats"] = downbeats
+	runtime["beat_map"] = beat_map
+	runtime["beats_per_bar"] = meter
+	runtime["bpm"] = float(chart.get("bpm", chart.get("timing", {}).get("bpm_summary", 120.0)))
+	return runtime
+
 func _fail(message: String) -> bool:
 	last_error = message
 	return false
-

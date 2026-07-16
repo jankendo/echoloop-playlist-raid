@@ -68,7 +68,13 @@ func _draw() -> void:
 		if bool(item.get("resolved", false)):
 			continue
 		var phrase: Dictionary = session.chart.phrases[session.current_phrase]
-		var target := float(phrase.start_ms) + float(item.beat_phase) * 500.0
+		var beat_map = session.chart.get("beat_map")
+		var target_phase := float(item.get("beat_phase", 0.0))
+		var source_count := float(item.get("source_phrase_beat_count", 0.0))
+		var target_count := float(phrase.get("beat_count", 16.0))
+		if source_count > 0.0 and not is_equal_approx(source_count, target_count):
+			target_phase = float(item.get("normalized_phase", 0.0)) * target_count
+		var target: float = float(beat_map.phrase_relative_to_time(session.current_phrase, target_phase))
 		var y := hit_y - (target - current_time_ms) * 0.32 * speed
 		if y > 60.0 and y < size.y:
 			var cx := left + int(item.lane) * lane_width + lane_width * 0.5

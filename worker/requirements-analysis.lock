@@ -1,0 +1,11 @@
+# Generated from the Windows 11 / Python 3.11 validation environment.
+# PyTorch is intentionally installed by tools/setup_analysis.ps1 because its
+# official CPU/CUDA index differs by compute platform.
+-e ./worker[audio]
+jsonschema==4.26.0
+numpy==1.26.4
+scipy==1.13.1
+librosa==0.11.0
+soundfile==0.13.1
+soxr==0.3.7
+Pillow==10.3.0

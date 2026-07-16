@@ -5,12 +5,36 @@ signal job_updated(status: Dictionary)
 
 var last_status: Dictionary = {"state": "idle", "message": "No job started"}
 var _job_dir := "user://jobs"
+var _current_cancel_file := ""
 
 func start_health_check() -> void:
-	var job_id := "health-" + str(Time.get_ticks_msec())
+	start_job("health_check", {})
+
+func start_local_audio_probe(source_path: String) -> void:
+	start_job("probe_local_audio", {"source_path": source_path, "project_root": ProjectSettings.globalize_path("res://")})
+
+func start_local_audio_analysis(source_path: String, title: String = "", artist: String = "", backend: String = "auto") -> void:
+	start_job("analyze_local_audio", {"source_path": source_path, "title": title, "artist": artist, "backend": backend, "project_root": ProjectSettings.globalize_path("res://"), "store_root": ProjectSettings.globalize_path("user://echoloop-data")})
+
+func start_chart_regeneration(song_uuid: String, store_root: String) -> void:
+	start_job("regenerate_charts", {"song_uuid": song_uuid, "store_root": store_root})
+
+func cancel_current_job() -> void:
+	if _current_cancel_file.is_empty():
+		return
+	var file := FileAccess.open(_current_cancel_file, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string("cancel\n")
+	file.close()
+
+func start_job(job_type: String, payload: Dictionary) -> void:
+	var job_id := job_type + "-" + str(Time.get_ticks_msec())
 	var directory := _job_dir + "/" + job_id
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
-	var request := {"schema_version": 1, "job_id": job_id, "job_type": "health_check", "output_dir": ProjectSettings.globalize_path(directory + "/output")}
+	var cancel_path := directory + "/cancel"
+	_current_cancel_file = ProjectSettings.globalize_path(cancel_path)
+	var request := {"schema_version": 2 if job_type != "health_check" else 1, "job_id": job_id, "job_type": job_type, "output_dir": ProjectSettings.globalize_path(directory + "/output"), "cancel_file": _current_cancel_file, "payload": payload}
 	var request_file := directory + "/request.json"
 	var status_file := directory + "/status.json"
 	var log_file := directory + "/worker.jsonl"
@@ -22,7 +46,7 @@ func start_health_check() -> void:
 	file.close()
 	var args := PackedStringArray(["-m", "echoloop_worker.cli", "--request", ProjectSettings.globalize_path(request_file), "--status", ProjectSettings.globalize_path(status_file), "--log", ProjectSettings.globalize_path(log_file)])
 	var pid := OS.create_process("python", args, false)
-	_set_status({"state": "running", "message": "health check started", "pid": pid, "status_path": status_file})
+	_set_status({"schema_version": request.schema_version, "state": "running", "job_type": job_type, "message": "job started", "pid": pid, "status_path": status_file, "cancel_file": _current_cancel_file})
 
 func _process(_delta: float) -> void:
 	if str(last_status.get("state", "")) != "running":
@@ -39,6 +63,9 @@ func _process(_delta: float) -> void:
 		_set_status(parsed)
 
 func _set_status(value: Dictionary) -> void:
-	last_status = value
+	var merged := value.duplicate(true)
+	for key in ["status_path", "cancel_file", "pid"]:
+		if not merged.has(key) and last_status.has(key):
+			merged[key] = last_status[key]
+	last_status = merged
 	job_updated.emit(last_status)
-

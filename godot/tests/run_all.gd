@@ -10,8 +10,9 @@ func _init() -> void:
 	_test_echo()
 	_test_corruption()
 	_test_session()
+	_test_beat_map()
 	if failures.is_empty():
-		print("ECHOLOOP Godot tests: PASS (6 suites)")
+		print("ECHOLOOP Godot tests: PASS (7 suites)")
 		quit(0)
 	else:
 		for failure in failures:
@@ -69,11 +70,11 @@ func _test_chart() -> void:
 
 func _test_echo() -> void:
 	var echo = load("res://scripts/core/echo_system.gd").new()
-	echo.record_success(0, 0.0, 1000.0, 0, "tap", "n1", "PERFECT")
+	echo.record_success(0, 0.0, 0.0, 0, "tap", "n1", "PERFECT", 0, "", 16.0, 2.0)
 	echo.finalize_phrase(0)
 	_check(echo.active_echoes.size() == 1, "echo created at phrase end")
-	_check(echo.replay_events(0, 2.0, 0.0).is_empty(), "echo does not replay in source phrase")
-	_check(echo.replay_events(1, 2.0, 8000.0).size() == 1, "echo replays next phrase")
+	_check(echo.replay_events(0, 2.0, 0.0, null, 16.0).is_empty(), "echo does not replay in source phrase")
+	_check(echo.replay_events(1, 2.0, 8000.0, null, 16.0).size() == 1, "echo replays next phrase")
 	for index in range(1, 5):
 		echo.record_success(index, index * 8000.0, index * 8000.0, index % 4, "tap", "n%d" % index, "GREAT")
 		echo.finalize_phrase(index)
@@ -101,3 +102,19 @@ func _test_session() -> void:
 	_check(session.current_phrase == 1, "phrase advances")
 	_check(session.echo_system.active_echoes.size() >= 1, "session finalizes echo")
 	_check(session.result_snapshot().has("integrity"), "session result snapshot")
+	var runtime: Dictionary = loader.normalize(chart)
+	_check(runtime.has("beat_map"), "v1 chart gets BeatMap")
+	_check(runtime.beat_map.time_to_beat(0.0) == 0.0, "v1 beat map origin")
+
+func _test_beat_map() -> void:
+	var beat_map_script = load("res://scripts/core/beat_map.gd")
+	for bpm in [60.0, 90.0, 120.0, 150.0, 180.0]:
+		var map = beat_map_script.new()
+		var interval: float = 60000.0 / bpm
+		_check(map.configure([100.0, 100.0 + interval, 100.0 + interval * 2.0], [100.0], [], 4), "beat map bpm %d valid" % int(bpm))
+		_check(is_equal_approx(map.beat_to_time(1.5), 100.0 + interval * 1.5), "beat to time %d" % int(bpm))
+		_check(is_equal_approx(map.time_to_beat(100.0 + interval * 0.5), 0.5), "time to beat %d" % int(bpm))
+	var variable = beat_map_script.new()
+	_check(variable.configure([100.0, 600.0, 900.0, 1300.0], [100.0, 1300.0], [{"bpm": 120.0}], 3), "variable tempo map valid")
+	_check(is_equal_approx(variable.time_to_beat(750.0), 1.5), "variable tempo interpolation")
+	_check(not variable.configure([100.0, 100.0], [], [], 4), "duplicate beat rejected")

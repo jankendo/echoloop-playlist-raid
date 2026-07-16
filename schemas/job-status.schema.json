@@ -4,15 +4,18 @@
   "type": "object",
   "required": ["schema_version", "job_id", "job_type", "state", "updated_at"],
   "properties": {
-    "schema_version": {"type": "integer", "const": 1},
+    "schema_version": {"type": "integer", "enum": [1, 2]},
     "job_id": {"type": "string", "minLength": 1},
     "job_type": {"type": "string"},
     "state": {"type": "string", "enum": ["queued", "running", "completed", "cancelled", "failed"]},
     "progress": {"type": "number", "minimum": 0, "maximum": 1},
     "updated_at": {"type": "string"},
+    "stage": {"type": "string"},
+    "message_key": {"type": "string"},
     "message": {"type": "string"},
     "error_code": {"type": "string"},
-    "result": {"type": "object"}
+    "result": {"type": "object"},
+    "error": {"type": ["object", "string", "null"]}
   },
   "additionalProperties": false
 }

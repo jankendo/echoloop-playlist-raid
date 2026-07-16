@@ -40,9 +40,23 @@ single Corruption event in the next phrase; Corruption failure cannot create ano
 ## Python worker boundary
 
 `JobService` writes a request JSON and launches `python -m echoloop_worker.cli`. The
-worker writes status atomically and emits JSONL diagnostics. `health_check` is the only
-implemented job in Phase 0. Audio analysis, yt-dlp and stem separation remain replaceable
-future jobs behind this boundary.
+worker writes status atomically and emits JSONL diagnostics. The registry now contains
+`health_check`, `probe_local_audio`, `analyze_local_audio`, and `regenerate_charts`.
+FFmpeg and optional Python analysis dependencies remain behind this boundary; yt-dlp
+and stem separation remain future source adapters.
+
+## Phase 3 audio flow
+
+```text
+FileDialog → probe_local_audio → SHA-256 / duplicate check
+           → analyze_local_audio → FFmpeg playback + analysis WAV
+           → Beat This! or librosa → BeatMap / features / sections
+           → four deterministic charts → atomic SongPack
+```
+
+Godot loads only the completed SongPack manifest, charts, and external `playback.ogg`.
+`ChartLoader.normalize()` converts schema v1 and v2 into one Runtime Chart. Gameplay
+and visual effects consume its BeatMap, never a single BPM value.
 
 ## Autoload responsibilities
 
@@ -56,4 +70,3 @@ future jobs behind this boundary.
 - `SongLibrary`: immutable test-song metadata and future local packages.
 - `JobService`: worker process boundary and diagnostic status.
 - `VersionService`: product/schema versions.
-

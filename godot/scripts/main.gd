@@ -1,7 +1,8 @@
 extends Control
-## Screen composition and input forwarding for the Phase 0–2 slice.
+## Screen composition and input forwarding for the offline Phase 3 slice.
 
 const GAMEPLAY_VIEW_SCRIPT := preload("res://scripts/ui/gameplay_view.gd")
+const BEAT_CHECK_VIEW_SCRIPT := preload("res://scripts/ui/beat_check_view.gd")
 
 var mode := "menu"
 var paused := false
@@ -18,6 +19,12 @@ var audio_clock: Node
 var input_timing: Node
 var app_state: Node
 var version_service: Node
+var import_source_path := ""
+var import_column: VBoxContainer
+var import_selected_label: Label
+var import_status_label: Label
+var import_action_button: Button
+var imported_song_uuid := ""
 
 func _ready() -> void:
 	set_process_input(true)
@@ -81,6 +88,8 @@ func _show_menu() -> void:
 	_add_title(box, "ECHOLOOP: PLAYLIST RAID", "過去の自分と共演する、ローカル完結のリズム・ローグライト")
 	_add_spacer(box, 26)
 	_add_button(box, "PLAY TEST SONG", "合成テスト曲でVertical Sliceを開始", _start_game)
+	_add_button(box, "IMPORT LOCAL AUDIO", "PC内のWAV / MP3 / M4A / OGG / FLACを解析", _show_import_local_audio)
+	_add_button(box, "SONG LIBRARY", "登録曲を選択、拍確認、再生成", _show_song_library)
 	_add_button(box, "SETTINGS", "キー、判定アシスト、表示を調整", _show_settings)
 	_add_button(box, "DIAGNOSTICS", "ローカルPythonワーカーと環境を確認", _show_diagnostics)
 	_add_button(box, "EXIT", "ゲームを終了", func() -> void: get_tree().quit())
@@ -97,9 +106,35 @@ func _start_game() -> void:
 	if chart.is_empty():
 		_show_error("譜面を読み込めませんでした: " + loader.last_error)
 		return
+	var stream: AudioStream = load("res://audio/test_song.wav")
+	_start_chart_game(chart, stream, "SYNTHETIC CRYSTAL PULSE  •  120 BPM  •  ECHOLOOP ONLINE")
+
+func _start_local_game(song_uuid: String) -> void:
+	var library := get_node_or_null("/root/SongLibrary")
+	if library == null:
+		_show_error("登録曲ライブラリを読み込めませんでした")
+		return
+	var chart_path: String = library.chart_path(song_uuid, "normal")
+	var loader := ChartLoader.new()
+	var chart := loader.load_chart(chart_path)
+	if chart.is_empty():
+		_show_error("登録曲の譜面を読み込めませんでした: " + loader.last_error)
+		return
+	var playback_path: String = library.playback_path(song_uuid)
+	var stream: AudioStream = AudioStreamOggVorbis.load_from_file(ProjectSettings.globalize_path(playback_path))
+	if stream == null:
+		_show_error("登録曲の再生音源を読み込めませんでした。SongPackを再解析してください。")
+		return
+	_start_chart_game(chart, stream, "LOCAL SONG  •  %s" % song_uuid)
+
+func _start_chart_game(chart: Dictionary, stream: AudioStream, title_text: String) -> void:
 	mode = "gameplay"
 	paused = false
 	capture_lane = -1
+	if audio_player != null:
+		audio_player.stop()
+		audio_player.queue_free()
+		audio_player = null
 	_clear_screen()
 	session = GameSession.new()
 	session.setup(chart, float(_setting("judgement_assist_ms", 0.0)))
@@ -116,7 +151,7 @@ func _start_game() -> void:
 	gameplay_view.configure(session)
 	add_child(gameplay_view)
 	audio_player = AudioStreamPlayer.new()
-	audio_player.stream = load("res://audio/test_song.wav")
+	audio_player.stream = stream
 	add_child(audio_player)
 	if audio_clock != null:
 		audio_clock.configure(float(_setting("audio_offset_ms", 0.0)), float(_setting("visual_offset_ms", 0.0)), float(chart.duration_ms))
@@ -128,7 +163,7 @@ func _start_game() -> void:
 		audio_player.play()
 	var top := _make_topbar()
 	page_title = top.get_node("Title")
-	page_title.text = "SYNTHETIC CRYSTAL PULSE  •  120 BPM  •  ECHOLOOP ONLINE"
+	page_title.text = title_text
 	hud_label = top.get_node("Hud")
 	feedback_label = top.get_node("Feedback")
 	feedback_label.text = "入力を待っています — D F J K"
@@ -155,6 +190,196 @@ func _show_results() -> void:
 	_add_spacer(box, 24)
 	_add_button(box, "RETRY", "2秒以内にテスト曲を再開", _start_game)
 	_add_button(box, "MAIN MENU", "曲選択へ戻る", _show_menu)
+
+func _show_import_local_audio() -> void:
+	mode = "import"
+	import_source_path = ""
+	imported_song_uuid = ""
+	import_action_button = null
+	_clear_screen()
+	var box := _make_column(Vector2(120, 90), 900)
+	import_column = box
+	_add_title(box, "IMPORT LOCAL AUDIO", "音源はPC内だけで処理します。元ファイルは変更せず、ネットワークへ送信しません。")
+	var help := Label.new()
+	help.text = "対応形式: WAV / MP3 / M4A / AAC / OGG / OPUS / FLAC\n最短30秒、最長15分、最大1GB。URLや動画ストリームは登録できません。"
+	help.add_theme_font_size_override("font_size", 17)
+	help.add_theme_color_override("font_color", Color("#c4d4ee"))
+	box.add_child(help)
+	var selected := Label.new()
+	selected.name = "Selected"
+	selected.text = "音源がまだ選択されていません"
+	selected.add_theme_font_size_override("font_size", 18)
+	selected.add_theme_color_override("font_color", Color("#8edbff"))
+	box.add_child(selected)
+	import_selected_label = selected
+	import_status_label = Label.new()
+	import_status_label.name = "ImportStatus"
+	import_status_label.text = "次へ: ファイルを選択してください"
+	import_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	import_status_label.add_theme_font_size_override("font_size", 18)
+	box.add_child(import_status_label)
+	_add_button(box, "CHOOSE AUDIO FILE", "FileDialogでPC内の音源を選択", _choose_import_file)
+	_add_button(box, "CANCEL JOB", "解析中の処理を安全に停止", _cancel_import_job)
+	_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
+
+func _choose_import_file() -> void:
+	var dialog := FileDialog.new()
+	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.title = "ローカル音源を選択"
+	dialog.filters = PackedStringArray(["*.wav, *.mp3, *.m4a, *.aac, *.ogg, *.opus, *.flac ; Audio files"])
+	dialog.file_selected.connect(_on_import_file_selected)
+	add_child(dialog)
+	dialog.popup_centered_ratio(0.78)
+
+func _on_import_file_selected(path: String) -> void:
+	import_source_path = path
+	if import_selected_label != null:
+		import_selected_label.text = "選択中: " + path.get_file()
+	var job_service := get_node_or_null("/root/JobService")
+	if job_service == null:
+		if import_status_label != null:
+			import_status_label.text = "Python workerが利用できません。診断画面で環境を確認してください。"
+		return
+	job_service.start_local_audio_probe(path)
+	if import_status_label != null:
+		import_status_label.text = "音源を確認しています…"
+
+func _cancel_import_job() -> void:
+	var job_service := get_node_or_null("/root/JobService")
+	if job_service != null:
+		job_service.cancel_current_job()
+	if import_status_label != null:
+		import_status_label.text = "キャンセルを依頼しました。処理の終了を待っています。"
+
+func _start_import_analysis() -> void:
+	if import_source_path.is_empty():
+		return
+	var job_service := get_node_or_null("/root/JobService")
+	if job_service != null:
+		job_service.start_local_audio_analysis(import_source_path)
+	if import_status_label != null:
+		import_status_label.text = "音源を解析しています。画面は操作できます。"
+
+func _show_song_library() -> void:
+	mode = "library"
+	_clear_screen()
+	var box := _make_column(Vector2(110, 80), 980)
+	_add_title(box, "SONG LIBRARY", "テスト曲と、user://へ登録したローカルSongPackをオフラインで選べます。")
+	var library := get_node_or_null("/root/SongLibrary")
+	if library == null:
+		_add_title(box, "LIBRARY UNAVAILABLE", "SongLibraryサービスを読み込めませんでした")
+		_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
+		return
+	var songs: Array = library.list_local_songs()
+	for song in songs:
+		var song_id := str(song.get("song_uuid", song.get("song_id", "test")))
+		var title := str(song.get("title", "Untitled"))
+		var artist := str(song.get("artist", "Local Audio"))
+		var is_test: bool = song_id == "test" or not song.has("pack_path")
+		var meta := Label.new()
+		meta.text = "%s — %s\nBPM %s / %sms / backend %s" % [title, artist, str(song.get("bpm", "120")), str(song.get("duration_ms", "?")), str(song.get("backend", "fixture"))]
+		meta.add_theme_font_size_override("font_size", 18)
+		meta.add_theme_color_override("font_color", Color("#c4d4ee"))
+		box.add_child(meta)
+		if is_test:
+			_add_button(box, "PLAY TEST SONG", "固定譜面を開始", _start_game)
+		else:
+			var local_id := song_id
+			_add_button(box, "PLAY", "Normal譜面を開始", func() -> void: _start_local_game(local_id))
+			_add_button(box, "BEAT CHECK", "拍・小節頭・BPM・offsetを確認", func() -> void: _show_beat_check(local_id))
+			_add_button(box, "REGENERATE CHARTS", "user_override.jsonから譜面を再生成", func() -> void: _regenerate_song(local_id))
+			_add_button(box, "REMOVE", "SongPackだけを削除（元音源は削除しない）", func() -> void: _confirm_remove_song(local_id))
+		_add_spacer(box, 10)
+	_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
+
+func _regenerate_song(song_uuid: String) -> void:
+	var library := get_node_or_null("/root/SongLibrary")
+	var job_service := get_node_or_null("/root/JobService")
+	if library != null and job_service != null:
+		job_service.start_chart_regeneration(song_uuid, library.get_song_pack_root())
+	_show_song_library()
+
+func _confirm_remove_song(song_uuid: String) -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "SongPackを削除"
+	dialog.dialog_text = "登録情報だけを削除します。元の音源ファイルは削除しません。\n本当に削除しますか？"
+	dialog.confirmed.connect(func() -> void:
+		var library := get_node_or_null("/root/SongLibrary")
+		if library != null:
+			library.remove_song_pack(song_uuid)
+		_show_song_library()
+	)
+	add_child(dialog)
+	dialog.popup_centered()
+
+func _show_beat_check(song_uuid: String) -> void:
+	mode = "beat_check"
+	_clear_screen()
+	var box := _make_column(Vector2(110, 90), 1000)
+	_add_title(box, "BEAT CHECK", "解析元analysis.jsonは変更せず、修正値だけuser_override.jsonへ保存します。")
+	var library := get_node_or_null("/root/SongLibrary")
+	if library == null:
+		_add_button(box, "BACK", "曲一覧へ戻る", _show_song_library)
+		return
+	var analysis_path: String = str(library.chart_path(song_uuid, "normal")).get_base_dir().get_base_dir() + "/analysis.json"
+	var file := FileAccess.open(analysis_path, FileAccess.READ)
+	var analysis: Dictionary = JSON.parse_string(file.get_as_text()) if file != null else {}
+	var info := Label.new()
+	info.text = "BPM %.2f / meter %s / backend %s / confidence %.2f\nbeats %d / downbeats %d / sections %d\n波形ピーク %d点" % [float(analysis.get("bpm_summary", 0.0)), str(analysis.get("meter", "?")), str(analysis.get("beat_backend", "?")), float(analysis.get("confidence", 0.0)), Array(analysis.get("beats_ms", [])).size(), Array(analysis.get("downbeats_ms", [])).size(), Array(analysis.get("sections", [])).size(), Array(analysis.get("waveform_peaks", [])).size()]
+	info.add_theme_font_size_override("font_size", 20)
+	info.add_theme_color_override("font_color", Color("#dce9ff"))
+	box.add_child(info)
+	var waveform = BEAT_CHECK_VIEW_SCRIPT.new()
+	waveform.configure(analysis)
+	box.add_child(waveform)
+	_add_button(box, "PLAY PREVIEW", "登録音源をオフライン再生", func() -> void: _play_local_preview(song_uuid))
+	_add_button(box, "STOP PREVIEW", "再生を停止", _stop_preview)
+	_add_button(box, "BPM HALF", "修正値を保存して4譜面を再生成", func() -> void: _save_override_and_regenerate(song_uuid, {"bpm_multiplier": 0.5}))
+	_add_button(box, "BPM DOUBLE", "修正値を保存して4譜面を再生成", func() -> void: _save_override_and_regenerate(song_uuid, {"bpm_multiplier": 2.0}))
+	_add_button(box, "OFFSET -10ms", "拍を10ms早める", func() -> void: _save_override_and_regenerate(song_uuid, {"beat_offset_ms": -10.0}))
+	_add_button(box, "OFFSET +10ms", "拍を10ms遅らせる", func() -> void: _save_override_and_regenerate(song_uuid, {"beat_offset_ms": 10.0}))
+	_add_button(box, "BACK", "曲一覧へ戻る", _show_song_library)
+
+func _play_local_preview(song_uuid: String) -> void:
+	_stop_preview()
+	var library := get_node_or_null("/root/SongLibrary")
+	if library == null:
+		return
+	var stream: AudioStream = AudioStreamOggVorbis.load_from_file(ProjectSettings.globalize_path(library.playback_path(song_uuid)))
+	if stream == null:
+		return
+	audio_player = AudioStreamPlayer.new()
+	audio_player.stream = stream
+	add_child(audio_player)
+	audio_player.play()
+
+func _stop_preview() -> void:
+	if audio_player != null:
+		audio_player.stop()
+		audio_player.queue_free()
+		audio_player = null
+
+func _save_override_and_regenerate(song_uuid: String, changes: Dictionary) -> void:
+	var library := get_node_or_null("/root/SongLibrary")
+	if library == null:
+		return
+	var override_path: String = str(library.chart_path(song_uuid, "normal")).get_base_dir().get_base_dir() + "/user_override.json"
+	var previous: Dictionary = {}
+	var file := FileAccess.open(override_path, FileAccess.READ)
+	if file != null:
+		var parsed: Variant = JSON.parse_string(file.get_as_text())
+		if parsed is Dictionary:
+			previous = parsed
+	previous.merge(changes)
+	previous["updated_at"] = Time.get_datetime_string_from_system(true)
+	var temporary := override_path + ".tmp"
+	var output := FileAccess.open(temporary, FileAccess.WRITE)
+	if output != null:
+		output.store_string(JSON.stringify(previous, "  ") + "\n")
+		output.close()
+		DirAccess.rename_absolute(ProjectSettings.globalize_path(temporary), ProjectSettings.globalize_path(override_path))
+	_regenerate_song(song_uuid)
 
 func _show_settings() -> void:
 	mode = "settings"
@@ -247,6 +472,31 @@ func _on_judgement(result: Dictionary) -> void:
 		feedback_label.text = "%s   %+.1f ms" % [judgement, float(result.get("delta_ms", 0.0))] if judgement != "GHOST" else "GHOST TAP — コンボとレゾナンスが減少"
 
 func _on_job_updated(status: Dictionary) -> void:
+	if mode == "import":
+		if import_status_label != null:
+			var stage := str(status.get("stage", status.get("message", "")))
+			var state := str(status.get("state", ""))
+			var progress := float(status.get("progress", 0.0)) * 100.0
+			import_status_label.text = "%s — %s (%.0f%%)" % [state, stage, progress]
+		if str(status.get("state", "")) == "completed":
+			if str(status.get("job_type", "")) == "probe_local_audio":
+				var probe: Dictionary = status.get("result", {})
+				if import_status_label != null:
+					import_status_label.text = "形式 %s / %.1f秒 / %skHz / %sch / SHA-256 %s" % [str(probe.get("format", "?")), float(probe.get("duration", 0.0)), str(float(probe.get("sample_rate", 0)) / 1000.0), str(probe.get("channels", "?")), str(probe.get("audio_sha256", "")).left(12)]
+				if import_action_button == null:
+					import_action_button = Button.new()
+					import_action_button.text = "ANALYZE AUDIO    拍・構造・4難易度譜面を生成"
+					import_action_button.custom_minimum_size = Vector2(640, 52)
+					import_action_button.pressed.connect(_start_import_analysis)
+					if import_column != null:
+						import_column.add_child(import_action_button)
+			elif str(status.get("job_type", "")) == "analyze_local_audio":
+				imported_song_uuid = str(status.get("result", {}).get("song_uuid", ""))
+				if not imported_song_uuid.is_empty():
+					if import_column != null:
+						_add_button(import_column, "PLAY GENERATED SONG", "Normal譜面を登録曲として開始", func() -> void: _start_local_game(imported_song_uuid))
+						_add_button(import_column, "MAIN MENU", "登録曲はuser://へ保存済み", _show_menu)
+			return
 	if mode != "diagnostics":
 		return
 	var label := get_node_or_null("Content/Column/Status") as Label
@@ -267,6 +517,10 @@ func _clear_screen() -> void:
 	hud_label = null
 	feedback_label = null
 	page_title = null
+	import_selected_label = null
+	import_column = null
+	import_status_label = null
+	import_action_button = null
 
 func _make_column(position: Vector2, width: float) -> VBoxContainer:
 	var panel := VBoxContainer.new()
