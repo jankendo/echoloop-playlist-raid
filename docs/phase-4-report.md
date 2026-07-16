@@ -1,6 +1,7 @@
 # ECHOLOOP: PLAYLIST RAID Phase 4 実装・検証レポート
 
-文書状態: 実装済み。GitHub Actions の通常CI run ID、Phase 4 commit、Draft PR URLは公開後に追記する。
+文書状態: 実装済み。Phase 4実装コミット `b1c4281a46f5f02e04cd418b8b876ada9b1a160a`、
+Draft PR [#2](https://github.com/jankendo/echoloop-playlist-raid/pull/2) を公開済み。
 
 ## 1. 対象
 
@@ -32,7 +33,7 @@ Phase 3の公開PR #1は `6b3324b2cb81faa9b45fc783becd1c8610b6db1c` を
 | Godot 4.7.1 headless | PASS | editor check exit 0、`ECHOLOOP Godot tests: PASS (7 suites)` |
 | Windows export + rcedit + PE metadata | PASS | `dist/windows/ECHOLOOP_PLAYLIST_RAID.exe`、112,793,560 bytes、SHA-256 `a082c064ba577f4acb1f24f5a50720eb1d00cdec4dc7102b8208f1be98519038`、ProductName `ECHOLOOP: PLAYLIST RAID`、FileVersion `0.4.0.0` |
 | online YouTube smoke | NOT RUN | ユーザー提示の権利確認済みテストURLがないため実接続を実行していない。`workflow_dispatch` の `test_url` と `--rights-confirmed` で別途実行可能 |
-| GitHub Actions normal CI | PENDING | 公開push後のrun IDを追記 |
+| GitHub Actions normal CI | PASS | push run [29472726326](https://github.com/jankendo/echoloop-playlist-raid/actions/runs/29472726326)、PR run [29472738712](https://github.com/jankendo/echoloop-playlist-raid/actions/runs/29472738712)。python/youtube-mock/godot成功、online smokeはskipped |
 
 ### 実測ツールチェーン
 
