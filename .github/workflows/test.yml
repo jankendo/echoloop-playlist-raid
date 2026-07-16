@@ -1,8 +1,14 @@
-name: Phase 3 tests
+name: ECHOLOOP tests
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      test_url:
+        description: "権利確認済みの短い公開YouTube音声URL"
+        required: false
+        type: string
 
 jobs:
   python:
@@ -19,12 +25,31 @@ jobs:
         run: python -m pip install -r worker/requirements-analysis.lock
       - name: Install worker dev tools
         run: python -m pip install -e "worker[dev]"
+      - name: Install YouTube API boundary without network tests
+        run: python -m pip install -r worker/requirements-youtube.lock
       - name: Run Python tests and lint
         shell: pwsh
         run: ./tools/run_python_tests.ps1
       - name: Run local audio E2E
         shell: pwsh
         run: python tools/run_phase3_e2e.py
+
+  youtube-mock:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install worker test environment
+        run: |
+          python -m pip install -e "worker[dev]"
+          python -m pip install -r worker/requirements-youtube.lock
+      - name: Run offline fake yt-dlp tests
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Resolve-Path worker/src).Path
+          python -m pytest worker/tests/test_phase4_youtube.py -q
 
   godot:
     runs-on: windows-latest
@@ -39,3 +64,34 @@ jobs:
       - name: Run Godot headless tests
         shell: pwsh
         run: ./tools/run_godot_tests.ps1 -GodotPath $env:GODOT
+
+  online-youtube-smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_url != '' }}
+    runs-on: windows-latest
+    environment: online-youtube-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: "2.8.1"
+      - name: Install FFmpeg
+        shell: pwsh
+        run: choco install ffmpeg -y --no-progress
+      - name: Install worker online smoke environment
+        run: |
+          python -m pip install -e "worker[audio,youtube]"
+          python -m pip install torch==2.9.0 --index-url https://download.pytorch.org/whl/cpu
+      - name: Run rights-cleared short YouTube smoke
+        shell: pwsh
+        env:
+          SMOKE_URL: ${{ inputs.test_url }}
+        run: |
+          $env:PYTHONPATH = (Resolve-Path worker/src).Path
+          python tools/run_online_youtube_smoke.py --url $env:SMOKE_URL --rights-confirmed --project-root (Get-Location) --report .runtime/reports/online-youtube-smoke.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: online-youtube-smoke-report
+          path: .runtime/reports/online-youtube-smoke.json

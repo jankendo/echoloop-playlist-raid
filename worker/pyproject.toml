@@ -19,10 +19,16 @@ audio = [
   "Pillow>=10,<12"
 ]
 beat = [
-  "beat-this",
+  "beat-this==1.1.0",
   "einops>=0.7,<1",
   "rotary-embedding-torch>=0.6,<1",
   "tqdm>=4.66,<5"
+]
+youtube = [
+  "yt-dlp",
+  "yt-dlp-ejs==0.8.0",
+  "curl-cffi>=0.7,<1",
+  "websockets>=13,<16"
 ]
 dev = ["pytest>=8.0,<9", "ruff>=0.5,<1", "mypy>=1.10,<2"]
 

@@ -131,7 +131,18 @@ def test_song_pack_is_atomic_and_duplicate_checked(tmp_path: Path) -> None:
 
 
 def test_job_registry_and_schema_v2_request(tmp_path: Path) -> None:
-    assert set(JOB_REGISTRY) == {"probe_local_audio", "analyze_local_audio", "regenerate_charts"}
+    assert set(JOB_REGISTRY) == {
+        "probe_local_audio",
+        "analyze_local_audio",
+        "regenerate_charts",
+        "probe_youtube",
+        "probe_youtube_playlist",
+        "import_youtube",
+        "import_youtube_batch",
+        "verify_ytdlp",
+        "update_ytdlp",
+        "rollback_ytdlp",
+    }
     request = tmp_path / "request.json"
     request.write_text(json.dumps({"schema_version": 2, "job_id": "job", "job_type": "probe_local_audio", "output_dir": str(tmp_path / "out"), "payload": {}}))
     assert read_request(request)["job_type"] == "probe_local_audio"

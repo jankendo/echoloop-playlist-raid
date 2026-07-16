@@ -39,11 +39,12 @@ single Corruption event in the next phrase; Corruption failure cannot create ano
 
 ## Python worker boundary
 
-`JobService` writes a request JSON and launches `python -m echoloop_worker.cli`. The
-worker writes status atomically and emits JSONL diagnostics. The registry now contains
-`health_check`, `probe_local_audio`, `analyze_local_audio`, and `regenerate_charts`.
-FFmpeg and optional Python analysis dependencies remain behind this boundary; yt-dlp
-and stem separation remain future source adapters.
+`JobService` writes a request JSON and launches the current staged Python venv through
+`python -m echoloop_worker.cli`. The worker writes status atomically and emits JSONL
+diagnostics. The registry contains local audio jobs plus `probe_youtube`,
+`probe_youtube_playlist`, `import_youtube`, `import_youtube_batch`, `verify_ytdlp`,
+`update_ytdlp`, and `rollback_ytdlp`. Source adapters keep yt-dlp, Deno/EJS, FFmpeg, and
+optional Python analysis dependencies behind this boundary.
 
 ## Phase 3 audio flow
 

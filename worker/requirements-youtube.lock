@@ -1,0 +1,5 @@
+# Phase 4 YouTube ingestion runtime. yt-dlp is installed by bootstrap after the
+# stable/nightly compatibility probe so its matching default extras are used.
+yt-dlp-ejs==0.8.0
+curl-cffi>=0.7,<1
+websockets>=13,<16

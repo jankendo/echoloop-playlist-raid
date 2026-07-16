@@ -2,10 +2,11 @@
 
 ## Prerequisites
 
-- Godot Engine 4.7.1 Standard Windows build
+- Godot Engine 4.7.1 Standard Windows build (`.tools/godot/4.7.1-stable` after bootstrap)
 - Installed Windows export templates for the same Godot version
 - Python 3.11 for fixture generation and the optional local worker runtime
-- FFmpeg and ffprobe on PATH for local audio import
+- FFmpeg and ffprobe from `.tools/ffmpeg/8.1.2` or PATH for local audio import
+- rcedit 2.0.0 from `.tools/rcedit/2.0.0` for Windows version resources
 
 ## Command
 
@@ -23,13 +24,11 @@ The expected output is `dist/windows/ECHOLOOP_PLAYLIST_RAID.exe` plus its `.pck`
 the export is not embedded. If templates are unavailable, the script writes the exact
 command and error to this document and reports the build as environment-limited.
 
-Local verification on 2026-07-16 used the available `Godot_v4.2-stable_win64_console.exe`
-and produced the embedded-PCK executable. This is a compatibility smoke result, not a
-claim that Godot 4.7.1 has been locally installed. The export also warned that `rcedit`
-was unavailable while setting Windows file-version metadata; the executable was still
-created and launched.
+Phase 4's managed build prepends the versioned `rcedit-x64.exe` to PATH and applies
+ProductName, FileDescription, CompanyName, FileVersion, and ProductVersion after export.
+If the managed rcedit is absent the script fails instead of reporting a
+metadata-complete build. The project icon is `godot/icon.svg`.
 
 The Windows executable does not bundle Python, FFmpeg, PyTorch, Beat This!, or
-librosa in Phase 3. Without those tools, the executable keeps the built-in and
-already registered songs playable and the Import/Diagnostics screens report the
-missing environment.
+librosa. Without those tools, the executable keeps the built-in and already registered
+songs playable; the YouTube/analysis screens report the missing environment.

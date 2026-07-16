@@ -2,6 +2,8 @@
 .godot/
 godot/.godot/
 godot/.godot-user/
+*.uid
+*.import
 
 # Python generated state
 __pycache__/
@@ -15,6 +17,12 @@ worker/src/*.egg-info/
 
 # Build and user data
 dist/
+.tools/
+.runtime/
+.models/
+.cache/
+worker/.venv/
+toolchain.local.json
 build/
 logs/
 user_data/

@@ -49,6 +49,10 @@ def run_probe_job(payload: dict[str, Any], stage: StageCallback, cancel_file: Pa
 def run_analysis_job(payload: dict[str, Any], stage: StageCallback, cancel_file: Path | None) -> dict[str, Any]:
     started = time.perf_counter()
     source = Path(str(payload.get("source_path", "")))
+    source_type = str(payload.get("source_type", "local"))
+    source_metadata = payload.get("source_metadata")
+    if not isinstance(source_metadata, dict):
+        source_metadata = {}
     project_root = _optional_path(payload.get("project_root"))
     stage("validating_request", 0.02)
     _check_cancel(cancel_file)
@@ -57,7 +61,7 @@ def run_analysis_job(payload: dict[str, Any], stage: StageCallback, cancel_file:
         source,
         ffprobe_path=_optional_string(payload.get("ffprobe_path")),
         project_root=project_root,
-        min_seconds=float(payload.get("min_seconds", 30.0)),
+        min_seconds=float(payload.get("min_seconds", 5.0 if source_type == "youtube" else 30.0)),
         max_seconds=float(payload.get("max_seconds", 900.0)),
         max_bytes=int(payload.get("max_bytes", 1_073_741_824)),
     )
@@ -69,6 +73,9 @@ def run_analysis_job(payload: dict[str, Any], stage: StageCallback, cancel_file:
     duplicate = store.find_by_hash(audio_sha256)
     if duplicate is not None and str(payload.get("duplicate_policy", "reject")) == "reject":
         raise SongPackError("LOCAL_AUDIO_DUPLICATE", "同じ音源はすでに登録されています")
+    source_duplicate = store.find_by_source(str(source_metadata.get("extractor", "")), str(source_metadata.get("source_id", "")))
+    if source_duplicate is not None and str(payload.get("duplicate_policy", "reject")) == "reject":
+        raise SongPackError("SONG_PACK_ALREADY_EXISTS", "同じ取得元の音源はすでに登録されています")
     temporary_root = Path(tempfile.mkdtemp(prefix="echoloop-analysis-"))
     try:
         stage("copying_source", 0.19)
@@ -127,6 +134,7 @@ def run_analysis_job(payload: dict[str, Any], stage: StageCallback, cancel_file:
             charts=charts,
             title=str(payload.get("title", probe.tags.get("title", probe.path.stem))),
             artist=str(payload.get("artist", probe.tags.get("artist", "Local Audio"))),
+            source_metadata=source_metadata,
         )
         stage("completed", 1.0)
         return {

@@ -36,6 +36,20 @@ class SongPackStore:
                 return manifest_path.parent
         return None
 
+    def find_by_source(self, extractor: str, source_id: str) -> Path | None:
+        """Find a package by stable extractor/source ID without using a URL."""
+        if not extractor or not source_id:
+            return None
+        for manifest_path in self.songs_root.glob("*/manifest.json"):
+            try:
+                payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            source = payload.get("source") if isinstance(payload, dict) else None
+            if isinstance(source, dict) and source.get("extractor") == extractor and source.get("source_id") == source_id:
+                return manifest_path.parent
+        return None
+
     def list_packs(self) -> list[dict[str, Any]]:
         packs: list[dict[str, Any]] = []
         for manifest_path in sorted(self.songs_root.glob("*/manifest.json")):
@@ -58,6 +72,7 @@ class SongPackStore:
         title: str,
         artist: str,
         song_uuid: str | None = None,
+        source_metadata: dict[str, Any] | None = None,
     ) -> Path:
         audio_sha256 = str(probe.get("audio_sha256", ""))
         if not audio_sha256:
@@ -65,6 +80,11 @@ class SongPackStore:
         duplicate = self.find_by_hash(audio_sha256)
         if duplicate is not None:
             raise SongPackError("SONG_PACK_ALREADY_EXISTS", "同じ音源はすでに登録されています")
+        source_info = dict(source_metadata or {})
+        source_extractor = str(source_info.get("extractor", ""))
+        source_id = str(source_info.get("source_id", ""))
+        if source_extractor and source_id and self.find_by_source(source_extractor, source_id) is not None:
+            raise SongPackError("SONG_PACK_ALREADY_EXISTS", "同じ取得元の音源はすでに登録されています")
         identifier = song_uuid or str(uuid.uuid4())
         final_path = self.songs_root / identifier
         if final_path.exists():
@@ -92,8 +112,9 @@ class SongPackStore:
                 "backend": str(analysis.get("beat_backend", "unknown")),
                 "warnings": list(analysis.get("warnings", [])),
                 "chart_difficulties": sorted(charts.keys()),
+                "source": source_info,
             }
-            metadata = {"title": manifest["title"], "artist": manifest["artist"], "probe": probe}
+            metadata = {"title": manifest["title"], "artist": manifest["artist"], "probe": probe, "source": source_info}
             _write_json(temporary / "manifest.json", manifest)
             _write_json(temporary / "metadata.json", metadata)
             _write_json(temporary / "analysis.json", analysis_payload)

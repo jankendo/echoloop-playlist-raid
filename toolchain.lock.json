@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "project": "ECHOLOOP: PLAYLIST RAID",
+  "platform": "windows-x86_64",
+  "python": {
+    "major_minor": "3.11",
+    "architecture": "64bit",
+    "venv_layout": ".runtime/python-envs"
+  },
+  "tools": {
+    "godot": {
+      "version": "4.7.1-stable",
+      "flavor": "standard",
+      "archive_url": "https://downloads.godotengine.org/?flavor=stable&platform=windows.64&slug=win64.exe.zip&version=4.7.1",
+      "templates_url": "https://downloads.godotengine.org/?flavor=stable&platform=templates&slug=export_templates.tpz&version=4.7.1",
+      "sha256": "c7a289051eaefb460b0106b60e9cd5bee0ef55fd102dcb2bed1eb356cf3d90a1",
+      "templates_sha256": "86409db6200b6f8fd3230989c2d2002851f3dd18acf11d7bdbafddf5a0dd0f72",
+      "license": "MIT"
+    },
+    "deno": {
+      "version": "2.8.1",
+      "archive_url": "https://github.com/denoland/deno/releases/download/v2.8.1/deno-x86_64-pc-windows-msvc.zip",
+      "sha256": "5fb5bac71f609fb91ec8960fb290885aadc27eeb22f07a8eca0c3db6be38b11a",
+      "license": "MIT"
+    },
+    "ffmpeg": {
+      "version": "8.1.2",
+      "archive_url": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip",
+      "sha256": "db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec",
+      "license": "GPL-3.0-or-later with LGPL components"
+    },
+    "rcedit": {
+      "version": "2.0.0",
+      "archive_url": "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe",
+      "sha256": "3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a",
+      "license": "MIT"
+    }
+  },
+  "python_packages": {
+    "yt-dlp": {"channel": "nightly-after-stable-test", "stable_fallback": "2026.06.09"},
+    "yt-dlp-ejs": "0.8.0",
+    "curl-cffi": ">=0.7,<1",
+    "beat-this": "1.1.0",
+    "torch_cuda": "2.9.0",
+    "torchvision_cuda": "0.24.0",
+    "torchaudio_cuda": "2.9.0",
+    "torch_index_cuda": "https://download.pytorch.org/whl/cu128",
+    "torch_cpu_index": "https://download.pytorch.org/whl/cpu"
+  },
+  "models": {
+    "beat_this": {
+      "repository": "https://github.com/CPJKU/beat_this",
+      "package": "beat-this==1.1.0",
+      "required": ["final0", "small0"],
+      "cache_root": ".models/beat_this",
+      "download_policy": "explicit-prefetch-only"
+    }
+  }
+}

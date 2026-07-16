@@ -80,6 +80,7 @@ def resolve_tool(name: str, explicit: str | None = None, project_root: Path | No
                 project_root / ".tools" / f"{name}.exe",
             ]
         )
+        candidates.extend(sorted((project_root / ".tools").glob(f"*/**/{name}.exe")))
     on_path = shutil.which(name)
     if on_path:
         candidates.append(Path(on_path))

@@ -25,6 +25,13 @@ var import_selected_label: Label
 var import_status_label: Label
 var import_action_button: Button
 var imported_song_uuid := ""
+var youtube_url_input: LineEdit
+var youtube_rights_check: CheckBox
+var youtube_status_label: Label
+var youtube_search_input: LineEdit
+var youtube_entries_list: ItemList
+var youtube_entries: Array = []
+var youtube_sort_option: OptionButton
 
 func _ready() -> void:
 	set_process_input(true)
@@ -89,6 +96,7 @@ func _show_menu() -> void:
 	_add_spacer(box, 26)
 	_add_button(box, "PLAY TEST SONG", "合成テスト曲でVertical Sliceを開始", _start_game)
 	_add_button(box, "IMPORT LOCAL AUDIO", "PC内のWAV / MP3 / M4A / OGG / FLACを解析", _show_import_local_audio)
+	_add_button(box, "IMPORT YOUTUBE", "権利確認済みのYouTube音源を取り込む", _show_youtube_import)
 	_add_button(box, "SONG LIBRARY", "登録曲を選択、拍確認、再生成", _show_song_library)
 	_add_button(box, "SETTINGS", "キー、判定アシスト、表示を調整", _show_settings)
 	_add_button(box, "DIAGNOSTICS", "ローカルPythonワーカーと環境を確認", _show_diagnostics)
@@ -261,6 +269,153 @@ func _start_import_analysis() -> void:
 	if import_status_label != null:
 		import_status_label.text = "音源を解析しています。画面は操作できます。"
 
+func _show_youtube_import() -> void:
+	mode = "youtube"
+	_clear_screen()
+	var box := _make_column(Vector2(110, 80), 1100)
+	_add_title(box, "IMPORT YOUTUBE", "URLを解析してから、利用権限を確認した音声だけをSongPackへ保存します。Cookieやログイン情報は使いません。")
+	var help := Label.new()
+	help.text = "動画URLまたはプレイリストURLを入力してください。動画は音声のみを一時UUIDフォルダへ取得し、Phase 3の解析・譜面生成へ渡します。"
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	help.add_theme_font_size_override("font_size", 17)
+	help.add_theme_color_override("font_color", Color("#c4d4ee"))
+	box.add_child(help)
+	youtube_url_input = LineEdit.new()
+	youtube_url_input.name = "YoutubeUrl"
+	youtube_url_input.placeholder_text = "https://www.youtube.com/watch?v=... または /playlist?list=..."
+	youtube_url_input.custom_minimum_size = Vector2(900, 48)
+	youtube_url_input.add_theme_font_size_override("font_size", 18)
+	box.add_child(youtube_url_input)
+	youtube_rights_check = CheckBox.new()
+	youtube_rights_check.text = "この音源を保存・解析する権利または明示的な許諾があります"
+	youtube_rights_check.add_theme_font_size_override("font_size", 17)
+	box.add_child(youtube_rights_check)
+	youtube_status_label = Label.new()
+	youtube_status_label.text = "先に動画またはプレイリストをprobeしてください。"
+	youtube_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	youtube_status_label.add_theme_font_size_override("font_size", 18)
+	box.add_child(youtube_status_label)
+	_add_button(box, "PROBE VIDEO", "メタデータと権利確認前のプレビュー", func() -> void: _probe_youtube(false))
+	_add_button(box, "PROBE PLAYLIST", "flat一覧を取得して選択・検索・並べ替え", func() -> void: _probe_youtube(true))
+	_add_button(box, "CANCEL JOB", "取得・解析中の処理を安全に停止", _cancel_youtube_job)
+	_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
+
+func _probe_youtube(playlist: bool) -> void:
+	if youtube_url_input == null or youtube_url_input.text.strip_edges().is_empty():
+		_show_youtube_error("YouTubeのURLを入力してください")
+		return
+	var job_service := get_node_or_null("/root/JobService")
+	if job_service == null:
+		_show_youtube_error("Python workerが利用できません。DIAGNOSTICSで環境を確認してください")
+		return
+	if playlist:
+		job_service.start_youtube_playlist_probe(youtube_url_input.text.strip_edges())
+	else:
+		job_service.start_youtube_probe(youtube_url_input.text.strip_edges())
+	if youtube_status_label != null:
+		youtube_status_label.text = "YouTubeのメタデータを確認しています…"
+
+func _cancel_youtube_job() -> void:
+	var job_service := get_node_or_null("/root/JobService")
+	if job_service != null:
+		job_service.cancel_current_job()
+	if youtube_status_label != null:
+		youtube_status_label.text = "キャンセルを依頼しました。処理の終了を待っています。"
+
+func _show_youtube_preview(metadata: Dictionary) -> void:
+	if youtube_status_label == null:
+		return
+	youtube_status_label.text = "タイトル: %s\n作者: %s\n長さ: %.1f秒\n取得元: %s / ID: %s\nThumbnail: %s\n\n権利確認チェックを入れてからIMPORTしてください。" % [str(metadata.get("title", "")), str(metadata.get("artist", "")), float(metadata.get("duration_seconds", 0.0)), str(metadata.get("extractor", "")), str(metadata.get("source_id", "")), str(metadata.get("thumbnail", "(なし)"))]
+	if youtube_entries_list == null:
+		var box := _youtube_box()
+		if box != null:
+			_add_button(box, "IMPORT AUDIO", "この動画の音声を解析してSongPackへ保存", _start_youtube_import)
+
+func _start_youtube_import() -> void:
+	if youtube_url_input == null or youtube_url_input.text.strip_edges().is_empty():
+		_show_youtube_error("先にURLを入力してください")
+		return
+	if youtube_rights_check == null or not youtube_rights_check.button_pressed:
+		_show_youtube_error("利用権限の確認にチェックを入れてください")
+		return
+	var job_service := get_node_or_null("/root/JobService")
+	if job_service != null:
+		job_service.start_youtube_import(youtube_url_input.text.strip_edges(), true)
+	if youtube_status_label != null:
+		youtube_status_label.text = "音声を取得し、ローカル解析しています…"
+
+func _start_youtube_batch_import() -> void:
+	if youtube_rights_check == null or not youtube_rights_check.button_pressed:
+		_show_youtube_error("プレイリスト内の選択曲すべてについて利用権限を確認してください")
+		return
+	var selected: Array = []
+	if youtube_entries_list != null:
+		for index in youtube_entries_list.get_selected_items():
+			var item: Variant = youtube_entries_list.get_item_metadata(index)
+			if item is Dictionary:
+				selected.append(str(item.get("source_id", "")))
+	var job_service := get_node_or_null("/root/JobService")
+	if job_service != null:
+		var sort_mode := "index" if youtube_sort_option == null else str(youtube_sort_option.get_item_metadata(youtube_sort_option.selected))
+		job_service.start_youtube_batch_import(youtube_url_input.text.strip_edges(), selected, true, sort_mode)
+	if youtube_status_label != null:
+		youtube_status_label.text = "選択した曲を順番に取得しています。完了済みは再開時にスキップします。"
+
+func _rebuild_youtube_entries() -> void:
+	if youtube_entries_list == null:
+		return
+	youtube_entries_list.clear()
+	var query := "" if youtube_search_input == null else youtube_search_input.text.strip_edges().to_lower()
+	for entry in youtube_entries:
+		var title := str(entry.get("title", ""))
+		if not query.is_empty() and not title.to_lower().contains(query):
+			continue
+		var duration := float(entry.get("duration_seconds", 0.0))
+		youtube_entries_list.add_item("%s  [%.0fs]  %s" % [str(entry.get("playlist_index", "-")), duration, title])
+		youtube_entries_list.set_item_metadata(youtube_entries_list.get_item_count() - 1, entry)
+
+func _show_youtube_playlist(result: Dictionary) -> void:
+	youtube_entries = Array(result.get("entries", []))
+	if youtube_status_label != null:
+		youtube_status_label.text = "プレイリスト: %s / %d曲。検索・選択・並べ替えを行い、権利確認後に一括取り込みできます。" % [str(result.get("title", "")), youtube_entries.size()]
+	youtube_search_input = LineEdit.new()
+	youtube_search_input.placeholder_text = "タイトル検索"
+	youtube_search_input.text_changed.connect(func(_value: String) -> void: _rebuild_youtube_entries())
+	if youtube_status_label != null:
+		var box := _youtube_box()
+		if box != null:
+			box.add_child(youtube_search_input)
+	youtube_sort_option = OptionButton.new()
+	youtube_sort_option.add_item("プレイリスト順")
+	youtube_sort_option.set_item_metadata(0, "index")
+	youtube_sort_option.add_item("タイトル順")
+	youtube_sort_option.set_item_metadata(1, "title")
+	youtube_sort_option.add_item("長さ順")
+	youtube_sort_option.set_item_metadata(2, "duration")
+	if youtube_status_label != null:
+		var box := _youtube_box()
+		if box != null:
+			box.add_child(youtube_sort_option)
+	youtube_entries_list = ItemList.new()
+	youtube_entries_list.select_mode = ItemList.SELECT_MULTI
+	youtube_entries_list.custom_minimum_size = Vector2(900, 260)
+	if youtube_status_label != null:
+		var box := _youtube_box()
+		if box != null:
+			box.add_child(youtube_entries_list)
+	_rebuild_youtube_entries()
+	if youtube_status_label != null:
+		var box := _youtube_box()
+		if box != null:
+			_add_button(box, "IMPORT SELECTED", "権利確認済みの選択曲をatomic/resume一括取り込み", _start_youtube_batch_import)
+
+func _youtube_box() -> VBoxContainer:
+	return youtube_status_label.get_parent() as VBoxContainer if youtube_status_label != null else null
+
+func _show_youtube_error(message: String) -> void:
+	if youtube_status_label != null:
+		youtube_status_label.text = "エラー: " + message
+
 func _show_song_library() -> void:
 	mode = "library"
 	_clear_screen()
@@ -427,6 +582,8 @@ func _show_diagnostics() -> void:
 	status.add_theme_font_size_override("font_size", 18)
 	box.add_child(status)
 	_add_button(box, "RUN LOCAL HEALTH CHECK", "Python workerを非同期起動", _run_health_check)
+	_add_button(box, "VERIFY TOOLCHAIN", "Godot / Python / Deno / FFmpeg / CUDA / modelsを検査", _run_toolchain_verify)
+	_add_button(box, "EXPORT ENVIRONMENT REPORT", "秘密情報を除いた実行環境JSONを保存", _export_environment_report)
 	_add_button(box, "PLAY TEST TONE", "合成音源が読み込めることを確認", func() -> void: _start_audio_probe(status))
 	_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
 
@@ -446,6 +603,20 @@ func _run_health_check() -> void:
 		_show_diagnostics()
 		return
 	job_service.start_health_check()
+
+func _run_toolchain_verify() -> void:
+	var status := get_node_or_null("Content/Column/Status") as Label
+	var script := ProjectSettings.globalize_path("res://../tools/verify_toolchain.ps1")
+	var pid := OS.create_process("pwsh", PackedStringArray(["-NoProfile", "-File", script]), false)
+	if status != null:
+		status.text = "Toolchain verifyを起動しました。PID %d。詳細はDIAGNOSTICSログと.runtime/reportsを確認してください。" % pid
+
+func _export_environment_report() -> void:
+	var status := get_node_or_null("Content/Column/Status") as Label
+	var script := ProjectSettings.globalize_path("res://../tools/export_environment_report.ps1")
+	var pid := OS.create_process("pwsh", PackedStringArray(["-NoProfile", "-File", script]), false)
+	if status != null:
+		status.text = "環境レポートを出力中です。PID %d。" % pid
 
 func _job_status_message() -> String:
 	var job_service := get_node_or_null("/root/JobService")
@@ -497,6 +668,28 @@ func _on_job_updated(status: Dictionary) -> void:
 						_add_button(import_column, "PLAY GENERATED SONG", "Normal譜面を登録曲として開始", func() -> void: _start_local_game(imported_song_uuid))
 						_add_button(import_column, "MAIN MENU", "登録曲はuser://へ保存済み", _show_menu)
 			return
+	if mode == "youtube":
+		var state := str(status.get("state", ""))
+		if youtube_status_label != null and state == "running":
+			youtube_status_label.text = "%s — %s (%.0f%%)" % [state, str(status.get("stage", status.get("message", ""))), float(status.get("progress", 0.0)) * 100.0]
+		if state == "failed":
+			_show_youtube_error("%s: %s" % [str(status.get("error_code", "unknown")), str(status.get("message", ""))])
+		elif state == "completed":
+			var job_type := str(status.get("job_type", ""))
+			var result: Dictionary = status.get("result", {})
+			if job_type == "probe_youtube":
+				_show_youtube_preview(result.get("metadata", {}))
+			elif job_type == "probe_youtube_playlist":
+				_show_youtube_playlist(result)
+			elif job_type == "import_youtube":
+				imported_song_uuid = str(result.get("song_uuid", ""))
+				if youtube_status_label != null:
+					youtube_status_label.text = "取り込み完了: %s。SONG LIBRARYからオフライン再生できます。" % imported_song_uuid
+				if imported_song_uuid != "":
+					var box := _youtube_box()
+					if box != null:
+						_add_button(box, "PLAY IMPORTED SONG", "生成したNormal譜面を再生", func() -> void: _start_local_game(imported_song_uuid))
+		return
 	if mode != "diagnostics":
 		return
 	var label := get_node_or_null("Content/Column/Status") as Label
@@ -521,6 +714,12 @@ func _clear_screen() -> void:
 	import_column = null
 	import_status_label = null
 	import_action_button = null
+	youtube_url_input = null
+	youtube_rights_check = null
+	youtube_status_label = null
+	youtube_search_input = null
+	youtube_entries_list = null
+	youtube_sort_option = null
 
 func _make_column(position: Vector2, width: float) -> VBoxContainer:
 	var panel := VBoxContainer.new()

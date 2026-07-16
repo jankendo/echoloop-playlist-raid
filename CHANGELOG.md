@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added Phase 4 YouTube video/playlist probe and rights-gated audio import jobs,
+  sanitized metadata, playlist filtering/sorting, resumable batch state, and
+  source-aware SongPack deduplication.
+- Added project-local Godot 4.7.1, Deno, FFmpeg, rcedit, Python venv, yt-dlp
+  nightly preference, yt-dlp-ejs, CUDA/CPU PyTorch selection, Beat This! model
+  prefetch, verify/update/repair/rollback/offline tooling, and environment reports.
+- Added Godot YouTube import UI, playlist selection, toolchain diagnostics,
+  Windows PE metadata export, fake yt-dlp CI coverage, and a manual-only online
+  YouTube smoke workflow that requires an explicit rights-cleared URL.
 - Added Phase 3 local audio import through ffprobe/FFmpeg, SHA-256 duplicate
   detection, compact audio analysis, Beat This!/librosa backend boundaries, and
   atomic SongPacks.
