@@ -25,17 +25,15 @@ func start_youtube_probe(url: String) -> void:
 func start_youtube_playlist_probe(url: String) -> void:
 	start_job("probe_youtube_playlist", _youtube_payload(url))
 
-func start_youtube_import(url: String, rights_confirmed: bool) -> void:
+func start_youtube_import(url: String) -> void:
 	var payload := _youtube_payload(url)
-	payload["rights_confirmed"] = rights_confirmed
 	payload["store_root"] = ProjectSettings.globalize_path("user://echoloop-data")
 	start_job("import_youtube", payload)
 
-func start_youtube_batch_import(url: String, entries: Array, rights_confirmed: bool, sort_mode: String = "index") -> void:
+func start_youtube_batch_import(url: String, entries: Array, sort_mode: String = "index") -> void:
 	var payload := _youtube_payload(url)
 	payload["entries"] = entries
 	payload["sort"] = sort_mode
-	payload["rights_confirmed"] = rights_confirmed
 	payload["store_root"] = ProjectSettings.globalize_path("user://echoloop-data")
 	start_job("import_youtube_batch", payload)
 

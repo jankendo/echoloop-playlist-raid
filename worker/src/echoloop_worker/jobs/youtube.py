@@ -40,7 +40,7 @@ def run_probe_youtube_job(payload: dict[str, Any], stage: StageCallback, cancel_
     stage("probing_youtube_metadata", 0.45)
     metadata = adapter.probe(str(payload.get("url", "")))
     stage("completed", 1.0)
-    return {"metadata": metadata, "rights_confirmed": bool(payload.get("rights_confirmed", False))}
+    return {"metadata": metadata}
 
 
 def run_probe_youtube_playlist_job(payload: dict[str, Any], stage: StageCallback, cancel_file: Path | None) -> dict[str, Any]:
@@ -60,8 +60,6 @@ def run_probe_youtube_playlist_job(payload: dict[str, Any], stage: StageCallback
 
 def run_import_youtube_job(payload: dict[str, Any], stage: StageCallback, cancel_file: Path | None) -> dict[str, Any]:
     validate_payload_keys(payload)
-    if payload.get("rights_confirmed") is not True:
-        raise SourceAdapterError("RIGHTS_CONFIRMATION_REQUIRED", "利用権限の確認が必要です")
     job_id = str(payload.get("_job_id", uuid.uuid4().hex))
     output_root = Path(str(payload.get("_output_dir", ""))).resolve()
     if not output_root:
@@ -103,7 +101,7 @@ def run_import_youtube_job(payload: dict[str, Any], stage: StageCallback, cancel
         )
         result = run_analysis_job(analysis_payload, lambda name, value: stage(name, 0.55 + value * 0.42), cancel_file)
         stage("completed", 1.0)
-        return {**result, "source": metadata, "rights_confirmed": True}
+        return {**result, "source": metadata}
     finally:
         if downloaded is not None:
             shutil.rmtree(downloaded.parent, ignore_errors=True)
@@ -111,8 +109,6 @@ def run_import_youtube_job(payload: dict[str, Any], stage: StageCallback, cancel
 
 def run_import_youtube_batch_job(payload: dict[str, Any], stage: StageCallback, cancel_file: Path | None) -> dict[str, Any]:
     validate_payload_keys(payload)
-    if payload.get("rights_confirmed") is not True:
-        raise SourceAdapterError("RIGHTS_CONFIRMATION_REQUIRED", "利用権限の確認が必要です")
     output_root = Path(str(payload.get("_output_dir", ""))).resolve()
     state_path = output_root / "batch.state.json"
     state = _read_json(state_path, {"schema_version": 1, "completed": {}, "failed": {}})

@@ -1,8 +1,6 @@
 param([string]$GodotPath = "")
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-& (Join-Path $PSScriptRoot "run_python_tests.ps1")
-& (Join-Path $PSScriptRoot "run_godot_tests.ps1") -GodotPath $GodotPath
 if (-not $GodotPath) {
 	$managedGodot = Join-Path $root ".tools\godot\4.7.1-stable\Godot_v4.7.1-stable_win64_console.exe"
 	if (Test-Path -LiteralPath $managedGodot) { $GodotPath = $managedGodot }
@@ -13,6 +11,8 @@ if (-not $GodotPath) {
     if ($godot) { $GodotPath = $godot.Source }
 }
 if (-not $GodotPath) { throw "Godot executable is required for export." }
+& (Join-Path $PSScriptRoot "run_python_tests.ps1")
+& (Join-Path $PSScriptRoot "run_godot_tests.ps1") -GodotPath $GodotPath
 $rcedit = Join-Path $root ".tools\rcedit\2.0.0\rcedit-x64.exe"
 if (Test-Path -LiteralPath $rcedit) {
 	$env:PATH = (Split-Path -Parent $rcedit) + ";" + $env:PATH
@@ -43,7 +43,7 @@ Result: environment-limited; no executable was claimed.
 }
 Write-Output ($log -join "`n")
 if (Test-Path -LiteralPath $rcedit) {
-	& $rcedit $output --set-version-string ProductName "ECHOLOOP: PLAYLIST RAID" --set-version-string FileDescription "ECHOLOOP rhythm rogue-lite" --set-version-string CompanyName "ECHOLOOP" --set-file-version "0.4.0.0" --set-product-version "0.4.0.0"
+	& $rcedit $output --set-version-string ProductName "ECHOLOOP: PLAYLIST RAID" --set-version-string FileDescription "ECHOLOOP rhythm rogue-lite" --set-version-string CompanyName "ECHOLOOP" --set-file-version "0.5.0.0" --set-product-version "0.5.0.0"
 	if ($LASTEXITCODE -ne 0) { throw "rcedit failed with exit code $LASTEXITCODE" }
 	Write-Output "rcedit version resources applied: $rcedit"
 } else {

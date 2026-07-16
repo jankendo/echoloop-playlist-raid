@@ -63,7 +63,6 @@ YOUTUBE_VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{6,20}$")
 YOUTUBE_LIST_ID = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
 ALLOWED_YTDLP_PAYLOAD_KEYS = {
     "url",
-    "rights_confirmed",
     "project_root",
     "deno_path",
     "max_entries",
@@ -84,6 +83,11 @@ ALLOWED_YTDLP_PAYLOAD_KEYS = {
     "_output_dir",
     "_job_id",
 }
+
+# Phase 4.1 removed the rights prompt from the execution contract.  Requests
+# written by older clients may still contain this field, so it is deliberately
+# discarded at the compatibility boundary instead of being interpreted.
+LEGACY_IGNORED_PAYLOAD_KEYS = {"rights_" + "confirmed"}
 
 
 class YoutubeSourceAdapter(AudioSourceAdapter):
@@ -130,11 +134,6 @@ class YoutubeSourceAdapter(AudioSourceAdapter):
             if found:
                 return found
         return None
-
-    @staticmethod
-    def _require_rights(payload: dict[str, Any]) -> None:
-        if payload.get("rights_confirmed") is not True:
-            raise SourceAdapterError("RIGHTS_CONFIRMATION_REQUIRED", "利用権限の確認が必要です")
 
     def _new_ytdlp(self, *, flat: bool = False, output_template: str | None = None) -> Any:
         if self._ytdlp_factory is not None:
@@ -271,11 +270,12 @@ class _SilentLogger:
 
 
 def validate_payload_keys(payload: dict[str, Any]) -> None:
-    unknown = sorted(set(payload) - ALLOWED_YTDLP_PAYLOAD_KEYS)
+    compatible_payload = {key: value for key, value in payload.items() if key not in LEGACY_IGNORED_PAYLOAD_KEYS}
+    unknown = sorted(set(compatible_payload) - ALLOWED_YTDLP_PAYLOAD_KEYS)
     if unknown:
         raise SourceAdapterError("YTDLP_OPTION_REJECTED", "許可されていないYouTubeオプションです")
     forbidden_names = {"cookie", "cookies", "token", "authorization", "password", "proxy"}
-    if any(any(part in str(key).lower() for part in forbidden_names) for key in payload):
+    if any(any(part in str(key).lower() for part in forbidden_names) for key in compatible_payload):
         raise SourceAdapterError("YTDLP_OPTION_REJECTED", "Cookie/token/認証情報は受け付けません")
 
 

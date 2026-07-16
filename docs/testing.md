@@ -24,7 +24,7 @@ and deterministic game-session outcomes.
 3. Let a phrase pass with misses; confirm Corruption appears in the next phrase.
 4. Play a phrase accurately; confirm a visible EchoTrack appears from the next phrase.
 5. Let the song finish; confirm Results, RETRY, and MAIN MENU.
-6. Open Import Local Audio with a rights-cleared local file; confirm progress and
+6. Open Import Local Audio with a local fixture file; confirm progress and
    cancellation behavior.
 7. Open Song Library / Beat Check; confirm waveform, beats, downbeats, preview,
    BPM/offset override, regeneration, and offline playback.

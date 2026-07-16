@@ -4,7 +4,7 @@
 
 本リポジトリは、添付された開発基準仕様に基づく **Phase 0〜4 のローカル優先
 Vertical Slice** です。通常起動・通常CIではネットワーク取得を行いません。D・F・
-J・Kで合成テスト曲、登録したローカル曲、または権利確認済みのYouTube音声を演奏
+F/Jで合成テスト曲や登録したローカル曲、YouTube音声を演奏
 すると、成功した入力が次のフレーズでエコーとして再演され、MISSはコラプション
 として戻ってきます。
 
@@ -20,7 +20,7 @@ J・Kで合成テスト曲、登録したローカル曲、または権利確認
 - オフラインPython `health_check` ワーカーとJSON Schema
 - 決定論的な120 BPM / 20小節の合成WAVと固定テスト譜面
 - `IMPORT LOCAL AUDIO`、ffprobe検証、SHA-256重複検出、FFmpeg変換
-- `IMPORT YOUTUBE`、yt-dlp Python API、Deno/EJS、権利確認、動画なし音声取得
+- `IMPORT YOUTUBE`、yt-dlp Python API、Deno/EJS、動画なし音声取得
 - YouTubeプレイリストflat一覧、検索・選択・並べ替え、atomic/resume一括取り込み
 - Beat This!接続点、librosaフォールバック、拍・小節頭・オンセット・帯域・構造解析
 - Easy / Normal / Hard / Expertの決定論的schema v2譜面、品質指標、Bot検査
@@ -65,7 +65,7 @@ pwsh -File tools/bootstrap_all.ps1 -Mode Offline
 ## YouTube取り込み
 
 `IMPORT YOUTUBE` はまず metadata probe を行い、動画タイトル・作者・長さ・ID・
-thumbnailを表示します。保存と解析には、画面上の権利確認チェックが必須です。
+thumbnailを表示します。確認後はIMPORTボタンからローカル保存と解析へ進めます。
 Cookie、ブラウザログイン、token、Authorization、proxyはworkerの入力境界で拒否
 します。取得音声はUUID一時フォルダに入り、既存のFFmpeg・Beat This!/librosa・
 譜面生成・SongPackの流れを再利用します。

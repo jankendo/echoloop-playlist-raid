@@ -37,7 +37,7 @@
     }
   },
   "python_packages": {
-    "yt-dlp": {"channel": "nightly-after-stable-test", "stable_fallback": "2026.06.09"},
+    "yt-dlp": {"channel": "nightly-after-stable-test", "locked_version": "2026.07.14.233956.dev0", "stable_fallback": "2026.06.09"},
     "yt-dlp-ejs": "0.8.0",
     "curl-cffi": ">=0.7,<1",
     "beat-this": "1.1.0",

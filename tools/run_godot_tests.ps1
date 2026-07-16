@@ -1,6 +1,11 @@
 param([string]$GodotPath = "")
 $ErrorActionPreference = "Stop"
 if (-not $GodotPath) {
+    $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+    $managedGodot = Join-Path $root ".tools\godot\4.7.1-stable\Godot_v4.7.1-stable_win64_console.exe"
+    if (Test-Path -LiteralPath $managedGodot) { $GodotPath = $managedGodot }
+}
+if (-not $GodotPath) {
     $godot = Get-Command godot -ErrorAction SilentlyContinue
     if (-not $godot) { $godot = Get-Command godot4 -ErrorAction SilentlyContinue }
     if ($godot) { $GodotPath = $godot.Source }

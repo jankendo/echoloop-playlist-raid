@@ -1,7 +1,7 @@
 """Explicit, manual-only YouTube smoke test.
 
-This script is never called by normal CI. The caller must affirm rights for the
-given short test asset; the URL itself is not written to the report.
+This script is never called by normal CI. The URL itself is not written to the
+report. The caller is responsible for selecting an appropriate test asset.
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ from echoloop_worker.source_adapters import SourceAdapterError
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", required=True)
-    parser.add_argument("--rights-confirmed", action="store_true")
+    # Accepted as a no-op for old runbooks; the execution contract no longer
+    # carries a rights confirmation flag.
+    parser.add_argument("--rights-confirmed", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--project-root", type=Path, default=Path("."))
     parser.add_argument("--store-root", type=Path)
     parser.add_argument("--report", type=Path, default=Path(".runtime/reports/online-youtube-smoke.json"))
     args = parser.parse_args()
-    if not args.rights_confirmed:
-        parser.error("--rights-confirmed is required for any online download")
     report_path = args.report.resolve()
     output_root = Path(tempfile.mkdtemp(prefix="echoloop-online-youtube-"))
     store_root = (args.store_root or (output_root / "songs")).resolve()
@@ -37,7 +37,6 @@ def main() -> int:
 
     payload = {
         "url": args.url,
-        "rights_confirmed": True,
         "project_root": str(args.project_root.resolve()),
         "store_root": str(store_root),
         "_output_dir": str(output_root),
@@ -48,7 +47,6 @@ def main() -> int:
     result: dict[str, Any] = {
         "schema_version": 1,
         "url_sha256": hashlib.sha256(args.url.encode("utf-8")).hexdigest(),
-        "rights_confirmed": True,
     }
     try:
         result["outcome"] = "passed"

@@ -3,13 +3,28 @@ extends Control
 
 const GAMEPLAY_VIEW_SCRIPT := preload("res://scripts/ui/gameplay_view.gd")
 const BEAT_CHECK_VIEW_SCRIPT := preload("res://scripts/ui/beat_check_view.gd")
+const BUTTON_SCRIPT := preload("res://ui/components/primary_button.gd")
+const STEPPER_SCRIPT := preload("res://ui/components/progress_stepper.gd")
+const SONG_CARD_SCRIPT := preload("res://ui/components/song_card.gd")
+const PAUSE_OVERLAY_SCRIPT := preload("res://ui/screens/pause_overlay.gd")
+const DUO_TUTORIAL_SCRIPT := preload("res://ui/screens/duo_tutorial.gd")
+const TOKENS := preload("res://ui/theme/design_tokens.gd")
 
 var mode := "menu"
 var paused := false
 var capture_lane := -1
+var pressed_lanes: Dictionary = {}
+var retry_press_started_msec: int = -1
 var session: GameSession
 var gameplay_view: Node2D
 var audio_player: AudioStreamPlayer
+var pause_overlay: Control
+var tutorial_overlay: Control
+var tutorial_seen := false
+var active_chart: Dictionary = {}
+var active_stream: AudioStream
+var active_title := ""
+var active_artist := ""
 var content: Control
 var hud_label: Label
 var feedback_label: Label
@@ -26,12 +41,12 @@ var import_status_label: Label
 var import_action_button: Button
 var imported_song_uuid := ""
 var youtube_url_input: LineEdit
-var youtube_rights_check: CheckBox
 var youtube_status_label: Label
 var youtube_search_input: LineEdit
 var youtube_entries_list: ItemList
 var youtube_entries: Array = []
 var youtube_sort_option: OptionButton
+var youtube_stepper: HBoxContainer
 
 func _ready() -> void:
 	set_process_input(true)
@@ -74,17 +89,24 @@ func _input(event: InputEvent) -> void:
 		if key == KEY_ESCAPE and event.pressed:
 			_toggle_pause()
 			return
-		if key == KEY_R and event.pressed:
-			_start_game()
+		if key == KEY_R:
+			if event.pressed:
+				retry_press_started_msec = Time.get_ticks_msec()
+			elif retry_press_started_msec >= 0 and Time.get_ticks_msec() - retry_press_started_msec >= 400:
+				_retry_active_song()
+				retry_press_started_msec = -1
 			return
 		var lane := _lane_for_key(key)
 		if lane >= 0:
 			var time_ms: float = audio_clock.song_time_ms() if audio_clock != null else 0.0
 			if event.pressed:
-				if not session.handle_corruption_input(lane, time_ms):
-					var result := session.handle_lane_input(lane, time_ms, true)
-					_on_judgement(result)
+				pressed_lanes[lane] = true
+				var active_lanes: Array = pressed_lanes.keys()
+				if active_lanes.size() == 1 and session.handle_corruption_input(lane, time_ms):
+					return
+				_on_judgement(session.handle_input_lanes(active_lanes, time_ms))
 			else:
+				pressed_lanes.erase(lane)
 				_on_judgement(session.handle_lane_input(lane, time_ms, false))
 
 func _show_menu() -> void:
@@ -94,17 +116,22 @@ func _show_menu() -> void:
 	var box := _make_column(Vector2(120, 120), 640)
 	_add_title(box, "ECHOLOOP: PLAYLIST RAID", "過去の自分と共演する、ローカル完結のリズム・ローグライト")
 	_add_spacer(box, 26)
-	_add_button(box, "PLAY TEST SONG", "合成テスト曲でVertical Sliceを開始", _start_game)
-	_add_button(box, "IMPORT LOCAL AUDIO", "PC内のWAV / MP3 / M4A / OGG / FLACを解析", _show_import_local_audio)
-	_add_button(box, "IMPORT YOUTUBE", "権利確認済みのYouTube音源を取り込む", _show_youtube_import)
-	_add_button(box, "SONG LIBRARY", "登録曲を選択、拍確認、再生成", _show_song_library)
-	_add_button(box, "SETTINGS", "キー、判定アシスト、表示を調整", _show_settings)
-	_add_button(box, "DIAGNOSTICS", "ローカルPythonワーカーと環境を確認", _show_diagnostics)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	box.add_child(grid)
+	_add_button(grid, "PLAY TEST SONG", "合成テスト曲でVertical Sliceを開始", _start_game, true)
+	_add_button(grid, "IMPORT LOCAL AUDIO", "PC内のWAV / MP3 / M4A / OGG / FLACを解析", _show_import_local_audio)
+	_add_button(grid, "IMPORT YOUTUBE", "YouTubeの動画またはプレイリストを解析して取り込む", _show_youtube_import)
+	_add_button(grid, "SONG LIBRARY", "登録曲をカードから選択、拍確認、再生成", _show_song_library)
+	_add_button(grid, "SETTINGS", "DUO / CLASSIC、キー、判定、表示を調整", _show_settings)
+	_add_button(grid, "DIAGNOSTICS", "ローカルPythonワーカーと環境を確認", _show_diagnostics)
 	_add_button(box, "EXIT", "ゲームを終了", func() -> void: get_tree().quit())
 	_add_spacer(box, 30)
 	var note := Label.new()
-	note.text = "D / F / J / K でレーン入力　　Esc: 一時停止　　R: リトライ"
-	note.add_theme_color_override("font_color", Color("#8fa7c7"))
+	note.text = "DUO: F = LEFT / J = RIGHT / F+J = CHORD　　Esc: PAUSE　　R長押し: QUICK RETRY"
+	note.add_theme_color_override("font_color", TOKENS.MUTED)
 	note.add_theme_font_size_override("font_size", 16)
 	box.add_child(note)
 
@@ -139,13 +166,19 @@ func _start_chart_game(chart: Dictionary, stream: AudioStream, title_text: Strin
 	mode = "gameplay"
 	paused = false
 	capture_lane = -1
+	pressed_lanes.clear()
+	active_chart = chart.duplicate(true)
+	active_stream = stream
+	active_title = title_text
+	active_artist = "ECHOLOOP SESSION"
 	if audio_player != null:
 		audio_player.stop()
 		audio_player.queue_free()
 		audio_player = null
 	_clear_screen()
 	session = GameSession.new()
-	session.setup(chart, float(_setting("judgement_assist_ms", 0.0)))
+	var requested_mode := str(_setting("gameplay_mode", "duo_2key"))
+	session.setup(chart, float(_setting("judgement_assist_ms", 0.0)), requested_mode)
 	session.judgement_applied.connect(_on_judgement)
 	session.corruption_spawned.connect(func(_item: Dictionary) -> void:
 		if feedback_label != null:
@@ -174,7 +207,19 @@ func _start_chart_game(chart: Dictionary, stream: AudioStream, title_text: Strin
 	page_title.text = title_text
 	hud_label = top.get_node("Hud")
 	feedback_label = top.get_node("Feedback")
-	feedback_label.text = "入力を待っています — D F J K"
+	feedback_label.text = "入力を待っています — F LEFT / J RIGHT / F+J CHORD"
+	if requested_mode == "duo_2key" and not tutorial_seen:
+		tutorial_seen = true
+		paused = true
+		if audio_clock != null:
+			audio_clock.pause()
+		if audio_player != null:
+			audio_player.stream_paused = true
+		tutorial_overlay = DUO_TUTORIAL_SCRIPT.new()
+		add_child(tutorial_overlay)
+		tutorial_overlay.accepted.connect(_dismiss_tutorial)
+		tutorial_overlay.skipped.connect(_dismiss_tutorial)
+		tutorial_overlay.show_tutorial()
 
 func _show_results() -> void:
 	if mode == "results":
@@ -196,7 +241,7 @@ func _show_results() -> void:
 	stats.add_theme_font_size_override("font_size", 20)
 	box.add_child(stats)
 	_add_spacer(box, 24)
-	_add_button(box, "RETRY", "2秒以内にテスト曲を再開", _start_game)
+	_add_button(box, "RETRY", "現在の曲を先頭から再開", _retry_active_song, true)
 	_add_button(box, "MAIN MENU", "曲選択へ戻る", _show_menu)
 
 func _show_import_local_audio() -> void:
@@ -273,7 +318,10 @@ func _show_youtube_import() -> void:
 	mode = "youtube"
 	_clear_screen()
 	var box := _make_column(Vector2(110, 80), 1100)
-	_add_title(box, "IMPORT YOUTUBE", "URLを解析してから、利用権限を確認した音声だけをSongPackへ保存します。Cookieやログイン情報は使いません。")
+	_add_title(box, "IMPORT YOUTUBE", "URLを解析し、メタデータを確認してからローカルSongPackへ保存します。Cookieやログイン情報は使いません。")
+	youtube_stepper = STEPPER_SCRIPT.new()
+	youtube_stepper.configure(["URL", "PREVIEW", "SELECT", "IMPORT"], 0)
+	box.add_child(youtube_stepper)
 	var help := Label.new()
 	help.text = "動画URLまたはプレイリストURLを入力してください。動画は音声のみを一時UUIDフォルダへ取得し、Phase 3の解析・譜面生成へ渡します。"
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -286,16 +334,12 @@ func _show_youtube_import() -> void:
 	youtube_url_input.custom_minimum_size = Vector2(900, 48)
 	youtube_url_input.add_theme_font_size_override("font_size", 18)
 	box.add_child(youtube_url_input)
-	youtube_rights_check = CheckBox.new()
-	youtube_rights_check.text = "この音源を保存・解析する権利または明示的な許諾があります"
-	youtube_rights_check.add_theme_font_size_override("font_size", 17)
-	box.add_child(youtube_rights_check)
 	youtube_status_label = Label.new()
-	youtube_status_label.text = "先に動画またはプレイリストをprobeしてください。"
+	youtube_status_label.text = "STEP 1 / URLを入力して、動画またはプレイリストを解析してください。"
 	youtube_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	youtube_status_label.add_theme_font_size_override("font_size", 18)
 	box.add_child(youtube_status_label)
-	_add_button(box, "PROBE VIDEO", "メタデータと権利確認前のプレビュー", func() -> void: _probe_youtube(false))
+	_add_button(box, "PROBE VIDEO", "動画メタデータを確認してプレビューへ進む", func() -> void: _probe_youtube(false), true)
 	_add_button(box, "PROBE PLAYLIST", "flat一覧を取得して選択・検索・並べ替え", func() -> void: _probe_youtube(true))
 	_add_button(box, "CANCEL JOB", "取得・解析中の処理を安全に停止", _cancel_youtube_job)
 	_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
@@ -325,7 +369,9 @@ func _cancel_youtube_job() -> void:
 func _show_youtube_preview(metadata: Dictionary) -> void:
 	if youtube_status_label == null:
 		return
-	youtube_status_label.text = "タイトル: %s\n作者: %s\n長さ: %.1f秒\n取得元: %s / ID: %s\nThumbnail: %s\n\n権利確認チェックを入れてからIMPORTしてください。" % [str(metadata.get("title", "")), str(metadata.get("artist", "")), float(metadata.get("duration_seconds", 0.0)), str(metadata.get("extractor", "")), str(metadata.get("source_id", "")), str(metadata.get("thumbnail", "(なし)"))]
+	if youtube_stepper != null:
+		youtube_stepper.set_current(1)
+	youtube_status_label.text = "STEP 2 / PREVIEW\nタイトル: %s\n作者: %s\n長さ: %.1f秒\n取得元: %s / ID: %s\nThumbnail: %s" % [str(metadata.get("title", "")), str(metadata.get("artist", "")), float(metadata.get("duration_seconds", 0.0)), str(metadata.get("extractor", "")), str(metadata.get("source_id", "")), str(metadata.get("thumbnail", "(なし)"))]
 	if youtube_entries_list == null:
 		var box := _youtube_box()
 		if box != null:
@@ -335,19 +381,15 @@ func _start_youtube_import() -> void:
 	if youtube_url_input == null or youtube_url_input.text.strip_edges().is_empty():
 		_show_youtube_error("先にURLを入力してください")
 		return
-	if youtube_rights_check == null or not youtube_rights_check.button_pressed:
-		_show_youtube_error("利用権限の確認にチェックを入れてください")
-		return
 	var job_service := get_node_or_null("/root/JobService")
 	if job_service != null:
-		job_service.start_youtube_import(youtube_url_input.text.strip_edges(), true)
+		job_service.start_youtube_import(youtube_url_input.text.strip_edges())
+	if youtube_stepper != null:
+		youtube_stepper.set_current(3)
 	if youtube_status_label != null:
 		youtube_status_label.text = "音声を取得し、ローカル解析しています…"
 
 func _start_youtube_batch_import() -> void:
-	if youtube_rights_check == null or not youtube_rights_check.button_pressed:
-		_show_youtube_error("プレイリスト内の選択曲すべてについて利用権限を確認してください")
-		return
 	var selected: Array = []
 	if youtube_entries_list != null:
 		for index in youtube_entries_list.get_selected_items():
@@ -357,7 +399,9 @@ func _start_youtube_batch_import() -> void:
 	var job_service := get_node_or_null("/root/JobService")
 	if job_service != null:
 		var sort_mode := "index" if youtube_sort_option == null else str(youtube_sort_option.get_item_metadata(youtube_sort_option.selected))
-		job_service.start_youtube_batch_import(youtube_url_input.text.strip_edges(), selected, true, sort_mode)
+		job_service.start_youtube_batch_import(youtube_url_input.text.strip_edges(), selected, sort_mode)
+	if youtube_stepper != null:
+		youtube_stepper.set_current(3)
 	if youtube_status_label != null:
 		youtube_status_label.text = "選択した曲を順番に取得しています。完了済みは再開時にスキップします。"
 
@@ -376,8 +420,10 @@ func _rebuild_youtube_entries() -> void:
 
 func _show_youtube_playlist(result: Dictionary) -> void:
 	youtube_entries = Array(result.get("entries", []))
+	if youtube_stepper != null:
+		youtube_stepper.set_current(2)
 	if youtube_status_label != null:
-		youtube_status_label.text = "プレイリスト: %s / %d曲。検索・選択・並べ替えを行い、権利確認後に一括取り込みできます。" % [str(result.get("title", "")), youtube_entries.size()]
+		youtube_status_label.text = "STEP 3 / SELECT\nプレイリスト: %s / %d曲。検索・選択・並べ替えを行ってください。" % [str(result.get("title", "")), youtube_entries.size()]
 	youtube_search_input = LineEdit.new()
 	youtube_search_input.placeholder_text = "タイトル検索"
 	youtube_search_input.text_changed.connect(func(_value: String) -> void: _rebuild_youtube_entries())
@@ -407,7 +453,7 @@ func _show_youtube_playlist(result: Dictionary) -> void:
 	if youtube_status_label != null:
 		var box := _youtube_box()
 		if box != null:
-			_add_button(box, "IMPORT SELECTED", "権利確認済みの選択曲をatomic/resume一括取り込み", _start_youtube_batch_import)
+			_add_button(box, "IMPORT SELECTED", "選択曲をatomic/resumeで一括取り込み", _start_youtube_batch_import, true)
 
 func _youtube_box() -> VBoxContainer:
 	return youtube_status_label.get_parent() as VBoxContainer if youtube_status_label != null else null
@@ -427,25 +473,27 @@ func _show_song_library() -> void:
 		_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
 		return
 	var songs: Array = library.list_local_songs()
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 18)
+	box.add_child(grid)
 	for song in songs:
 		var song_id := str(song.get("song_uuid", song.get("song_id", "test")))
 		var title := str(song.get("title", "Untitled"))
 		var artist := str(song.get("artist", "Local Audio"))
 		var is_test: bool = song_id == "test" or not song.has("pack_path")
-		var meta := Label.new()
-		meta.text = "%s — %s\nBPM %s / %sms / backend %s" % [title, artist, str(song.get("bpm", "120")), str(song.get("duration_ms", "?")), str(song.get("backend", "fixture"))]
-		meta.add_theme_font_size_override("font_size", 18)
-		meta.add_theme_color_override("font_color", Color("#c4d4ee"))
-		box.add_child(meta)
+		var card: PanelContainer = SONG_CARD_SCRIPT.new()
+		var card_body: VBoxContainer = card.configure(title, artist, "BPM %s  /  %sms  /  %s" % [str(song.get("bpm", "120")), str(song.get("duration_ms", "?")), str(song.get("backend", "fixture"))], TOKENS.DUO_LEFT if is_test else TOKENS.ACCENT_ALT)
+		grid.add_child(card)
 		if is_test:
-			_add_button(box, "PLAY TEST SONG", "固定譜面を開始", _start_game)
+			_add_button(card_body, "PLAY TEST SONG", "固定譜面を開始", _start_game, true)
 		else:
 			var local_id := song_id
-			_add_button(box, "PLAY", "Normal譜面を開始", func() -> void: _start_local_game(local_id))
-			_add_button(box, "BEAT CHECK", "拍・小節頭・BPM・offsetを確認", func() -> void: _show_beat_check(local_id))
-			_add_button(box, "REGENERATE CHARTS", "user_override.jsonから譜面を再生成", func() -> void: _regenerate_song(local_id))
-			_add_button(box, "REMOVE", "SongPackだけを削除（元音源は削除しない）", func() -> void: _confirm_remove_song(local_id))
-		_add_spacer(box, 10)
+			_add_button(card_body, "PLAY", "Normal譜面を開始", func() -> void: _start_local_game(local_id), true)
+			_add_button(card_body, "BEAT CHECK", "拍・小節頭・BPM・offsetを確認", func() -> void: _show_beat_check(local_id))
+			_add_button(card_body, "REGENERATE CHARTS", "user_override.jsonから譜面を再生成", func() -> void: _regenerate_song(local_id))
+			_add_button(card_body, "REMOVE", "SongPackだけを削除（元音源は削除しない）", func() -> void: _confirm_remove_song(local_id))
 	_add_button(box, "BACK", "メインメニューへ戻る", _show_menu)
 
 func _regenerate_song(song_uuid: String) -> void:
@@ -541,6 +589,13 @@ func _show_settings() -> void:
 	_clear_screen()
 	var box := _make_column(Vector2(140, 100), 760)
 	_add_title(box, "SETTINGS", "判定と表示を自分に合わせて調整できます。変更は保存されます。")
+	var mode_label := Label.new()
+	mode_label.text = "GAMEPLAY MODE: %s" % ("DUO MODE  /  2 KEY" if str(_setting("gameplay_mode", "duo_2key")) == "duo_2key" else "CLASSIC 4-LANE")
+	mode_label.add_theme_font_size_override("font_size", 21)
+	mode_label.add_theme_color_override("font_color", TOKENS.ACCENT)
+	box.add_child(mode_label)
+	_add_button(box, "DUO MODE  •  F / J", "2レーンを中央に大きく表示。F=LEFT、J=RIGHT、F+J=CHORD", func() -> void: _set_gameplay_mode("duo_2key"), true)
+	_add_button(box, "CLASSIC 4-LANE  •  D / F / J / K", "従来の4レーン譜面をプレイ。既存カスタムキーを保持", func() -> void: _set_gameplay_mode("classic_4lane"))
 	var assist := Label.new()
 	assist.name = "Assist"
 	assist.text = "判定アシスト: %d ms" % int(_setting("judgement_assist_ms", 0))
@@ -549,20 +604,27 @@ func _show_settings() -> void:
 	_add_button(box, "ASSIST OFF", "標準 ±22 / ±45 / ±80 / ±120 ms", func() -> void: _set_setting("judgement_assist_ms", 0); _show_settings())
 	_add_button(box, "ASSIST +20ms", "初心者向けの余裕を追加", func() -> void: _set_setting("judgement_assist_ms", 20); _show_settings())
 	_add_button(box, "ASSIST +40ms", "ワイド判定で練習", func() -> void: _set_setting("judgement_assist_ms", 40); _show_settings())
+	_add_button(box, "REDUCED MOTION: %s" % ("ON" if bool(_setting("reduced_motion", false)) else "OFF"), "装飾アニメーションを抑えて集中しやすくする", func() -> void: _toggle_setting("reduced_motion"))
+	_add_button(box, "HIGH CONTRAST: %s" % ("ON" if bool(_setting("high_contrast", false)) else "OFF"), "境界線と文字のコントラストを高める", func() -> void: _toggle_setting("high_contrast"))
 	_add_spacer(box, 12)
 	var keys := Label.new()
-	keys.text = "レーンキー:  1 [%s]   2 [%s]   3 [%s]   4 [%s]" % [_key_name(0), _key_name(1), _key_name(2), _key_name(3)]
+	var key_count := 2 if str(_setting("gameplay_mode", "duo_2key")) == "duo_2key" else 4
+	var key_names: Array[String] = []
+	for key_index in range(key_count):
+		key_names.append(_key_name(key_index))
+	keys.text = "入力キー:  " + "   ".join(key_names)
 	keys.add_theme_font_size_override("font_size", 18)
 	box.add_child(keys)
-	for lane in range(4):
+	for lane in range(key_count):
 		var target := lane
-		_add_button(box, "CHANGE LANE %d" % (lane + 1), "押してから割り当てたいキーを入力", func() -> void: capture_lane = target; _show_settings())
+		var label := "CHANGE %s" % ("F / LEFT" if lane == 0 and key_count == 2 else "J / RIGHT" if lane == 1 and key_count == 2 else "LANE %d" % (lane + 1))
+		_add_button(box, label, "押してから割り当てたいキーを入力", func() -> void: capture_lane = target; _show_settings())
 	_add_button(box, "SAVE SETTINGS", "設定をuser://へアトミック保存", func() -> void: _save_settings(); _show_menu())
 	_add_button(box, "BACK", "保存せず戻る", _show_menu)
 	if capture_lane >= 0:
 		var capture := Label.new()
-		capture.text = "LANE %d の新しいキーを押してください" % (capture_lane + 1)
-		capture.add_theme_color_override("font_color", Color("#ffcf5a"))
+		capture.text = "新しいキーを入力してください: %s" % ("F / LEFT" if key_count == 2 and capture_lane == 0 else "J / RIGHT" if key_count == 2 else "LANE %d" % (capture_lane + 1))
+		capture.add_theme_color_override("font_color", TOKENS.WARNING)
 		box.add_child(capture)
 
 func _show_diagnostics() -> void:
@@ -625,17 +687,98 @@ func _job_status_message() -> String:
 	return str(job_service.last_status.get("message", "idle"))
 
 func _toggle_pause() -> void:
-	paused = not paused
+	if mode != "gameplay" or session == null:
+		return
 	if paused:
-		if audio_clock != null:
-			audio_clock.pause()
-		feedback_label.text = "PAUSED — Escで再開 / Rでリトライ / D F J K"
-	else:
-		if audio_clock != null:
-			audio_clock.resume()
-		feedback_label.text = "RESUMED — D F J K"
+		_resume_from_pause()
+		return
+	paused = true
+	if audio_clock != null:
+		audio_clock.pause()
+	if audio_player != null:
+		audio_player.stream_paused = true
+	if pause_overlay == null:
+		pause_overlay = PAUSE_OVERLAY_SCRIPT.new()
+		add_child(pause_overlay)
+		pause_overlay.resumed.connect(_resume_from_pause)
+		pause_overlay.restarted.connect(_retry_active_song)
+		pause_overlay.song_selected.connect(_leave_gameplay_to_song_select)
+		pause_overlay.returned_to_title.connect(_return_to_title_without_save)
+		pause_overlay.settings_requested.connect(_leave_gameplay_to_settings)
+	var result := session.result_snapshot()
+	pause_overlay.show_snapshot(active_title, active_artist, _format_song_time(session.current_time_ms), int(result.score), int(result.combo))
+
+func _resume_from_pause() -> void:
+	if mode != "gameplay":
+		return
+	paused = false
+	if audio_clock != null:
+		audio_clock.resume()
+	if audio_player != null:
+		audio_player.stream_paused = false
+	if pause_overlay != null:
+		pause_overlay.hide()
+	if feedback_label != null:
+		feedback_label.text = "RESUMED — F LEFT / J RIGHT"
+
+func _retry_active_song() -> void:
+	if active_chart.is_empty() or active_stream == null:
+		_start_game()
+		return
+	var chart := active_chart.duplicate(true)
+	var stream := active_stream
+	var title := active_title
+	_start_chart_game(chart, stream, title)
+
+func _leave_gameplay_to_song_select() -> void:
+	_return_to_title_without_save()
+	_show_song_library()
+
+func _leave_gameplay_to_settings() -> void:
+	_return_to_title_without_save()
+	_show_settings()
+
+func _return_to_title_without_save() -> void:
+	_cleanup_gameplay()
+	_show_menu()
+
+func _cleanup_gameplay() -> void:
+	paused = false
+	pressed_lanes.clear()
+	retry_press_started_msec = -1
+	if audio_clock != null:
+		audio_clock.stop()
+	if audio_player != null:
+		audio_player.stop()
+		audio_player.queue_free()
+		audio_player = null
+	if gameplay_view != null:
+		gameplay_view.queue_free()
+		gameplay_view = null
+	if pause_overlay != null:
+		pause_overlay.queue_free()
+		pause_overlay = null
+	if tutorial_overlay != null:
+		tutorial_overlay.queue_free()
+		tutorial_overlay = null
+	session = null
+	active_chart = {}
+	active_stream = null
+	active_title = ""
+	active_artist = ""
+
+func _dismiss_tutorial() -> void:
+	if tutorial_overlay != null:
+		tutorial_overlay.queue_free()
+		tutorial_overlay = null
+	_resume_from_pause()
+
+func _format_song_time(time_ms: float) -> String:
+	return "%02d:%02d" % [int(time_ms / 60_000.0), int(time_ms / 1000.0) % 60]
 
 func _on_judgement(result: Dictionary) -> void:
+	if str(result.get("judgement", "")) == "PENDING":
+		return
 	if gameplay_view != null:
 		gameplay_view.set_judgement(str(result.get("judgement", "")))
 	if feedback_label != null:
@@ -682,6 +825,8 @@ func _on_job_updated(status: Dictionary) -> void:
 			elif job_type == "probe_youtube_playlist":
 				_show_youtube_playlist(result)
 			elif job_type == "import_youtube":
+				if youtube_stepper != null:
+					youtube_stepper.set_current(3)
 				imported_song_uuid = str(result.get("song_uuid", ""))
 				if youtube_status_label != null:
 					youtube_status_label.text = "取り込み完了: %s。SONG LIBRARYからオフライン再生できます。" % imported_song_uuid
@@ -707,6 +852,8 @@ func _clear_screen() -> void:
 		if child != audio_player:
 			child.queue_free()
 	content = null
+	gameplay_view = null
+	pause_overlay = null
 	hud_label = null
 	feedback_label = null
 	page_title = null
@@ -715,30 +862,42 @@ func _clear_screen() -> void:
 	import_status_label = null
 	import_action_button = null
 	youtube_url_input = null
-	youtube_rights_check = null
 	youtube_status_label = null
 	youtube_search_input = null
 	youtube_entries_list = null
 	youtube_sort_option = null
+	youtube_stepper = null
 
 func _make_column(position: Vector2, width: float) -> VBoxContainer:
+	# The old position argument remains part of the call-site contract, while
+	# the actual layout is now margin-based and scales with the viewport.
 	var panel := VBoxContainer.new()
 	panel.name = "Column"
-	panel.position = position
-	panel.custom_minimum_size = Vector2(width, 0)
+	panel.custom_minimum_size = Vector2(minf(width, 1600.0), 0)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_theme_constant_override("separation", 12)
 	content = Control.new()
 	content.name = "Content"
 	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(content)
-	content.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 48)
+	margin.add_theme_constant_override("margin_top", 42)
+	margin.add_theme_constant_override("margin_right", 48)
+	margin.add_theme_constant_override("margin_bottom", 36)
+	content.add_child(margin)
+	margin.add_child(panel)
 	return panel
 
 func _make_topbar() -> HBoxContainer:
 	var bar := HBoxContainer.new()
 	bar.name = "TopBar"
-	bar.position = Vector2(42, 28)
-	bar.custom_minimum_size = Vector2(1800, 60)
+	bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	bar.offset_left = 42
+	bar.offset_top = 28
+	bar.offset_right = -42
+	bar.offset_bottom = 88
 	bar.add_theme_constant_override("separation", 24)
 	content = Control.new()
 	content.name = "Content"
@@ -770,23 +929,18 @@ func _add_title(box: VBoxContainer, title_text: String, subtitle: String) -> voi
 	var title := Label.new()
 	title.text = title_text
 	title.add_theme_font_size_override("font_size", 36)
-	title.add_theme_color_override("font_color", Color("#b9e9ff"))
+	title.add_theme_color_override("font_color", TOKENS.TEXT)
 	box.add_child(title)
 	var sub := Label.new()
 	sub.text = subtitle
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_font_size_override("font_size", 17)
-	sub.add_theme_color_override("font_color", Color("#8fa7c7"))
+	sub.add_theme_color_override("font_color", TOKENS.MUTED)
 	box.add_child(sub)
 
-func _add_button(box: VBoxContainer, label_text: String, hint: String, action: Callable) -> void:
-	var button := Button.new()
-	button.text = "%s    %s" % [label_text, hint]
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.custom_minimum_size = Vector2(640, 52)
-	button.add_theme_font_size_override("font_size", 18)
-	button.add_theme_color_override("font_color", Color("#dce9ff"))
-	button.pressed.connect(action)
+func _add_button(box: Container, label_text: String, hint: String, action: Callable, primary: bool = false) -> void:
+	var button: Button = BUTTON_SCRIPT.new()
+	button.configure(label_text, hint, action, primary)
 	box.add_child(button)
 
 func _add_spacer(box: VBoxContainer, height: float) -> void:
@@ -795,7 +949,8 @@ func _add_spacer(box: VBoxContainer, height: float) -> void:
 	box.add_child(spacer)
 
 func _key_name(lane: int) -> String:
-	var keys: Array = input_timing.lane_keys if input_timing != null else [KEY_D, KEY_F, KEY_J, KEY_K]
+	var use_duo := str(_setting("gameplay_mode", "duo_2key")) == "duo_2key"
+	var keys: Array = input_timing.duo_keys if use_duo and input_timing != null else input_timing.classic_keys if input_timing != null else ([KEY_F, KEY_J] if use_duo else [KEY_D, KEY_F, KEY_J, KEY_K])
 	return OS.get_keycode_string(int(keys[lane])) if lane < keys.size() else "?"
 
 func _setting(key: String, fallback: Variant) -> Variant:
@@ -805,6 +960,16 @@ func _set_setting(key: String, value: Variant) -> void:
 	if settings_service != null:
 		settings_service.set_value(key, value)
 
+func _toggle_setting(key: String) -> void:
+	_set_setting(key, not bool(_setting(key, false)))
+	_show_settings()
+
+func _set_gameplay_mode(value: String) -> void:
+	_set_setting("gameplay_mode", value)
+	if input_timing != null:
+		input_timing.set_mode(value)
+	_show_settings()
+
 func _save_settings() -> void:
 	if settings_service != null:
 		settings_service.save_values()
@@ -812,7 +977,7 @@ func _save_settings() -> void:
 func _lane_for_key(keycode: int) -> int:
 	if input_timing != null:
 		return input_timing.lane_for_key(keycode)
-	return [KEY_D, KEY_F, KEY_J, KEY_K].find(keycode)
+	return ([KEY_F, KEY_J] if str(_setting("gameplay_mode", "duo_2key")) == "duo_2key" else [KEY_D, KEY_F, KEY_J, KEY_K]).find(keycode)
 
 func _set_lane_key(lane: int, keycode: int) -> bool:
 	return input_timing.set_lane_key(lane, keycode) if input_timing != null else false

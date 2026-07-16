@@ -75,12 +75,32 @@ def test_probe_playlist_is_flat_and_uses_entry_whitelist() -> None:
     assert all("url" not in entry for entry in result["entries"])
 
 
-def test_import_job_requires_explicit_rights(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(youtube_jobs, "adapter_from_payload", lambda _payload: object())
-    with pytest.raises(SourceAdapterError) as error:
-        youtube_jobs.run_import_youtube_job(
-            {"url": "https://www.youtube.com/watch?v=abcDEF_1234", "_output_dir": str(tmp_path)},
-            lambda _name, _progress: None,
-            None,
-        )
-    assert error.value.code == "RIGHTS_CONFIRMATION_REQUIRED"
+class ImportAdapter:
+    def probe(self, _url: str) -> dict[str, Any]:
+        return {"source_id": "abcDEF_1234", "title": "test", "artist": "artist"}
+
+    def download_audio(self, _url: str, *, job_id: str, output_root: Path, hook: Any = None) -> Path:
+        del job_id, hook
+        directory = output_root / "youtube" / "fixture"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / "source_audio.wav"
+        path.write_bytes(b"fixture")
+        return path
+
+
+@pytest.mark.parametrize("legacy_value", [None, False, True])
+def test_import_job_accepts_new_and_legacy_payloads(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, legacy_value: Any) -> None:
+    monkeypatch.setattr(youtube_jobs, "adapter_from_payload", lambda _payload: ImportAdapter())
+    monkeypatch.setattr(youtube_jobs, "run_analysis_job", lambda _payload, _stage, _cancel: {"song_pack": {"song_uuid": "song-1"}})
+    payload: dict[str, Any] = {"url": "https://www.youtube.com/watch?v=abcDEF_1234", "_output_dir": str(tmp_path)}
+    if legacy_value is not None:
+        payload["rights_confirmed"] = legacy_value
+    result = youtube_jobs.run_import_youtube_job(payload, lambda _name, _progress: None, None)
+    assert result["song_pack"]["song_uuid"] == "song-1"
+    assert "rights_confirmed" not in result
+
+
+def test_legacy_payload_key_is_ignored_by_validation() -> None:
+    from echoloop_worker.source_adapters import validate_payload_keys
+
+    validate_payload_keys({"url": "https://www.youtube.com/watch?v=abcDEF_1234", "rights_confirmed": False})

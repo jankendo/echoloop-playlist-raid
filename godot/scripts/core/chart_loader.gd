@@ -3,6 +3,7 @@ extends RefCounted
 ## Data-driven chart loader and defensive Phase 1–2 validator.
 
 const BEAT_MAP_SCRIPT := preload("res://scripts/core/beat_map.gd")
+const RUNTIME_ADAPTER_SCRIPT := preload("res://scripts/core/runtime_chart_adapter.gd")
 
 var last_error: String = ""
 
@@ -73,11 +74,11 @@ func validate(chart: Dictionary) -> bool:
 				return _fail("chord lanes are invalid: " + str(note.id))
 	return true
 
-func load_runtime_chart(path: String) -> Dictionary:
+func load_runtime_chart(path: String, gameplay_mode: String = "duo_2key") -> Dictionary:
 	var chart := load_chart(path)
-	return normalize(chart) if not chart.is_empty() else {}
+	return normalize(chart, gameplay_mode) if not chart.is_empty() else {}
 
-func normalize(chart: Dictionary) -> Dictionary:
+func normalize(chart: Dictionary, gameplay_mode: String = "duo_2key") -> Dictionary:
 	if chart.is_empty() or not validate(chart):
 		return {}
 	var runtime := chart.duplicate(true)
@@ -110,7 +111,7 @@ func normalize(chart: Dictionary) -> Dictionary:
 	runtime["beat_map"] = beat_map
 	runtime["beats_per_bar"] = meter
 	runtime["bpm"] = float(chart.get("bpm", chart.get("timing", {}).get("bpm_summary", 120.0)))
-	return runtime
+	return RUNTIME_ADAPTER_SCRIPT.new().adapt(runtime, gameplay_mode)
 
 func _fail(message: String) -> bool:
 	last_error = message
