@@ -11,18 +11,20 @@ var corruption_queue: Array = []
 var replayed_keys: Dictionary = {}
 var chorus_used_phrases: Dictionary = {}
 
-func record_success(phrase_index: int, phrase_start_ms: float, beat_ms: float, lane: int, event_type: String, note_id: String, judgement: String, hold_duration_ms: int = 0, chord_group_id: String = "", phrase_beat_count: float = 0.0, phase_override: float = -1.0) -> void:
+func record_success(phrase_index: int, phrase_start_ms: float, beat_ms: float, input_lane: int, event_type: String, note_id: String, judgement: String, hold_duration_ms: int = 0, chord_group_id: String = "", phrase_beat_count: float = 0.0, phase_override: float = -1.0, semantic_lane: int = -1) -> void:
 	var phase := phase_override if phase_override >= 0.0 else maxf(0.0, beat_ms - phrase_start_ms)
-	var event := {"beat_phase": phase, "source_phrase": phrase_index, "source_phrase_beat_count": phrase_beat_count, "normalized_phase": 0.0, "lane": lane, "event_type": event_type, "judgement": judgement, "power": TimingJudge.power(judgement), "source_note_id": note_id, "hold_duration_ms": hold_duration_ms, "hold_duration_beats": 0.0, "chord_group_id": chord_group_id}
+	var effect_lane := semantic_lane if semantic_lane >= 0 else input_lane
+	var event := {"beat_phase": phase, "source_phrase": phrase_index, "source_phrase_beat_count": phrase_beat_count, "normalized_phase": 0.0, "input_lane": input_lane, "semantic_lane": effect_lane, "lane": input_lane, "event_type": event_type, "judgement": judgement, "power": TimingJudge.power(judgement), "source_note_id": note_id, "hold_duration_ms": hold_duration_ms, "hold_duration_beats": 0.0, "chord_group_id": chord_group_id}
 	if phrase_beat_count > 0.0:
 		event.normalized_phase = clampf(phase / phrase_beat_count, 0.0, 1.0)
 		event.hold_duration_beats = float(hold_duration_ms) / maxf(1.0, phrase_beat_count)
 	var bucket := _find_or_create_recording(phrase_index)
 	bucket.events.append(event)
 
-func record_miss(phrase_index: int, phase: float, lane: int, note_id: String, phrase_beat_count: float = 0.0) -> void:
+func record_miss(phrase_index: int, phase: float, input_lane: int, note_id: String, phrase_beat_count: float = 0.0, semantic_lane: int = -1) -> void:
 	var normalized := clampf(phase / phrase_beat_count, 0.0, 1.0) if phrase_beat_count > 0.0 else 0.0
-	corruption_queue.append({"source_phrase": phrase_index, "target_phrase": phrase_index + 1, "source_phrase_beat_count": phrase_beat_count, "normalized_phase": normalized, "beat_phase": phase, "lane": lane, "source_note_id": note_id, "resolved": false})
+	var effect_lane := semantic_lane if semantic_lane >= 0 else input_lane
+	corruption_queue.append({"source_phrase": phrase_index, "target_phrase": phrase_index + 1, "source_phrase_beat_count": phrase_beat_count, "normalized_phase": normalized, "beat_phase": phase, "input_lane": input_lane, "semantic_lane": effect_lane, "lane": input_lane, "source_note_id": note_id, "resolved": false})
 
 func finalize_phrase(phrase_index: int) -> void:
 	var recording: Variant = _find_recording(phrase_index)
@@ -55,7 +57,7 @@ func replay_events(phrase_index: int, phase: float, phrase_start_ms: float, beat
 				var replay_time := phrase_start_ms
 				if beat_map != null:
 					replay_time = float(beat_map.phrase_relative_to_time(phrase_index, event_phase))
-				output.append({"lane": event.lane, "effect": lane_effect(int(event.lane)), "power": event.power, "source_phrase": echo.source_phrase, "beat_phase": event_phase, "time_ms": replay_time})
+				output.append({"lane": event.input_lane, "input_lane": event.input_lane, "semantic_lane": event.semantic_lane, "effect": lane_effect(int(event.semantic_lane)), "power": event.power, "source_phrase": echo.source_phrase, "beat_phase": event_phase, "time_ms": replay_time})
 	return output
 
 func corruption_for_phrase(phrase_index: int) -> Array:

@@ -2,34 +2,21 @@
 
 ## Prerequisites
 
-- Godot Engine 4.7.1 Standard Windows build
-- Installed Windows export templates for the same Godot version
-- Python 3.11 for fixture generation and the optional local worker runtime
-- FFmpeg and ffprobe on PATH for local audio import
+- Godot Engine 4.7.1 Standard and matching export templates.
+- Python 3.11 for fixtures and the local worker runtime.
+- FFmpeg/ffprobe 8.1.2 and rcedit 2.0.0 in the managed tools directory.
+- yt-dlp verified with tools/install_ytdlp.ps1 -Mode Verify.
 
 ## Command
 
-```powershell
-pwsh -File tools/build_windows.ps1
-```
+Run tools/build_windows.ps1. It executes Python tests and Godot headless tests
+before exporting Windows Desktop and applying ProductName, FileDescription,
+CompanyName, FileVersion, and ProductVersion with rcedit.
 
-The script runs Python tests and Godot headless tests before invoking:
-
-```powershell
-godot.exe --headless --path godot --export-release "Windows Desktop" ..\dist\windows\ECHOLOOP_PLAYLIST_RAID.exe
-```
-
-The expected output is `dist/windows/ECHOLOOP_PLAYLIST_RAID.exe` plus its `.pck` when
-the export is not embedded. If templates are unavailable, the script writes the exact
-command and error to this document and reports the build as environment-limited.
-
-Local verification on 2026-07-16 used the available `Godot_v4.2-stable_win64_console.exe`
-and produced the embedded-PCK executable. This is a compatibility smoke result, not a
-claim that Godot 4.7.1 has been locally installed. The export also warned that `rcedit`
-was unavailable while setting Windows file-version metadata; the executable was still
-created and launched.
+Phase 4.2 expects PE version 0.5.0.0 and output
+dist/windows/ECHOLOOP_PLAYLIST_RAID.exe. If templates or rcedit are absent,
+the script fails and records the exact environment-limited reason.
 
 The Windows executable does not bundle Python, FFmpeg, PyTorch, Beat This!, or
-librosa in Phase 3. Without those tools, the executable keeps the built-in and
-already registered songs playable and the Import/Diagnostics screens report the
-missing environment.
+librosa. Built-in and already registered songs remain playable offline; import
+screens show a recovery message when optional worker dependencies are missing.

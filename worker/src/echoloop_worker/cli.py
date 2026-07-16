@@ -15,8 +15,18 @@ from typing import Any, Callable
 from echoloop_worker.audio import AudioError
 from echoloop_worker.jobs.audio import run_analysis_job, run_probe_job, run_regenerate_job
 from echoloop_worker.jobs.health import run_health_check
+from echoloop_worker.jobs.youtube import (
+    run_import_youtube_batch_job,
+    run_import_youtube_job,
+    run_probe_youtube_job,
+    run_probe_youtube_playlist_job,
+    run_rollback_ytdlp_job,
+    run_update_ytdlp_job,
+    run_verify_ytdlp_job,
+)
 from echoloop_worker.logging.jsonl import write_event
 from echoloop_worker.song_pack import SongPackError
+from echoloop_worker.source_adapters import SourceAdapterError
 
 
 class WorkerError(Exception):
@@ -32,6 +42,13 @@ JOB_REGISTRY: dict[str, JobHandler] = {
     "probe_local_audio": run_probe_job,
     "analyze_local_audio": run_analysis_job,
     "regenerate_charts": run_regenerate_job,
+    "probe_youtube": run_probe_youtube_job,
+    "probe_youtube_playlist": run_probe_youtube_playlist_job,
+    "import_youtube": run_import_youtube_job,
+    "import_youtube_batch": run_import_youtube_batch_job,
+    "verify_ytdlp": run_verify_ytdlp_job,
+    "update_ytdlp": run_update_ytdlp_job,
+    "rollback_ytdlp": run_rollback_ytdlp_job,
 }
 
 
@@ -115,6 +132,8 @@ def run(request_path: Path, status_path: Path, log_path: Path) -> int:
         else:
             handler = JOB_REGISTRY[job_type]
             payload = dict(request.get("payload", {}))
+            payload["_output_dir"] = str(output_dir)
+            payload["_job_id"] = job_id
 
             def update_stage(stage_name: str, progress: float) -> None:
                 atomic_write_json(
@@ -136,11 +155,12 @@ def run(request_path: Path, status_path: Path, log_path: Path) -> int:
             atomic_write_json(status_path, status(job_id, job_type, "completed", "completed", result=result, stage="completed", message_key="job.completed", error=None))
         write_event(log_path, "job_completed", job_id=job_id)
         return 0
-    except (WorkerError, AudioError, SongPackError) as error:
+    except (WorkerError, AudioError, SongPackError, SourceAdapterError) as error:
         error_code = getattr(error, "code", "internal_error")
-        atomic_write_json(status_path, status(job_id, job_type, "failed", str(error), error_code=error.code))
-        write_event(log_path, "job_failed", job_id=job_id, error_code=error_code)
-        return 1
+        state = "cancelled" if error_code == "JOB_CANCELLED" else "failed"
+        atomic_write_json(status_path, status(job_id, job_type, state, str(error), error_code=error_code))
+        write_event(log_path, "job_cancelled" if state == "cancelled" else "job_failed", job_id=job_id, error_code=error_code)
+        return 2 if state == "cancelled" else 1
     except Exception as error:  # pragma: no cover - final safety boundary
         atomic_write_json(status_path, status(job_id, job_type, "failed", str(error), error_code="internal_error", error=str(error)))
         write_event(log_path, "job_failed", job_id=job_id, error_code="internal_error")

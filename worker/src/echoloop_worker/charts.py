@@ -17,9 +17,10 @@ INSUFFICIENT_DATA_INTERVAL_MS = 60_000.0 / 120.0
 
 @dataclass(frozen=True)
 class ChartGenerationSettings:
-    generator_version: str = "0.2.0"
+    generator_version: str = "0.3.0"
     analysis_version: str = "0.2.0"
     max_regenerations: int = 3
+    gameplay_mode: str = "duo_2key"
 
 
 def _hash_seed(
@@ -287,6 +288,49 @@ def validate_chart_quality(chart: dict[str, Any], analysis: dict[str, Any], diff
     return result
 
 
+def _duo_quality_metrics(notes: list[dict[str, Any]], duration_ms: float) -> dict[str, Any]:
+    """Score the two-input projection while retaining semantic source lanes."""
+    projected: list[tuple[int, int, dict[str, Any]]] = []
+    for note in notes:
+        source_lanes = note.get("lanes", [note.get("lane", 0)])
+        input_lanes = sorted({0 if int(lane) <= 1 else 1 for lane in source_lanes})
+        note["semantic_lanes"] = sorted({int(lane) % 4 for lane in source_lanes})
+        note["semantic_lane"] = note["semantic_lanes"][0]
+        note["input_lanes"] = input_lanes
+        note["input_lane"] = input_lanes[0]
+        for lane in input_lanes:
+            projected.append((int(note.get("time_ms", 0)), lane, note))
+    total = max(1, len(projected))
+    left = sum(1 for _, lane, _ in projected if lane == 0)
+    right = sum(1 for _, lane, _ in projected if lane == 1)
+    ordered = sorted(projected, key=lambda item: (item[0], item[1], str(item[2].get("id", ""))))
+    alternations = sum(1 for previous, current in zip(ordered, ordered[1:]) if previous[1] != current[1])
+    jacks = sum(1 for previous, current in zip(ordered, ordered[1:]) if previous[1] == current[1] and current[0] - previous[0] <= 180)
+    chords = sum(1 for note in notes if len(note.get("input_lanes", [])) > 1)
+    hold_conflicts = 0
+    active_holds: dict[int, int] = {}
+    for time_ms, lane, note in ordered:
+        if time_ms < active_holds.get(lane, -1):
+            hold_conflicts += 1
+        if str(note.get("type", "tap")) == "hold":
+            active_holds[lane] = time_ms + int(note.get("duration_ms", 0))
+    duration_seconds = max(0.001, duration_ms / 1000.0)
+    balance = 1.0 - abs(left - right) / total
+    alternation_ratio = alternations / max(1, len(ordered) - 1)
+    chord_ratio = chords / max(1, len(notes))
+    playability = max(0.0, min(1.0, 0.35 * balance + 0.30 * alternation_ratio + 0.20 * (1.0 - min(1.0, hold_conflicts / total)) + 0.15 * (1.0 - min(1.0, abs(chord_ratio - 0.12) / 0.12))))
+    return {
+        "duo_balance": round(balance, 4),
+        "alternation_ratio": round(alternation_ratio, 4),
+        "left_density": round(left / duration_seconds, 4),
+        "right_density": round(right / duration_seconds, 4),
+        "jack_density": round(jacks / total, 4),
+        "duo_chord_ratio": round(chord_ratio, 4),
+        "hold_conflict_count": hold_conflicts,
+        "duo_playability_score": round(playability, 4),
+    }
+
+
 def _phase_offset(notes: list[dict[str, Any]], analysis: dict[str, Any]) -> float:
     if not notes or not analysis.get("beats_ms"):
         return 0.0
@@ -323,11 +367,15 @@ def generate_chart(
     audio_sha256: str | None = None,
     user_override: dict[str, Any] | None = None,
     settings: ChartGenerationSettings = ChartGenerationSettings(),
+    gameplay_mode: str | None = None,
 ) -> dict[str, Any]:
     """Generate one schema-v2 chart deterministically from analysis summaries."""
     if difficulty not in DIFFICULTIES:
         raise ValueError(f"unsupported difficulty: {difficulty}")
     override = user_override or {}
+    effective_mode = gameplay_mode or settings.gameplay_mode
+    if effective_mode not in {"duo_2key", "classic_4lane"}:
+        raise ValueError(f"unsupported gameplay_mode: {effective_mode}")
     effective = dict(analysis)
     effective["beats_ms"] = [float(value) for value in analysis.get("beats_ms", [])]
     multiplier = float(override.get("bpm_multiplier", 1.0))
@@ -343,7 +391,7 @@ def generate_chart(
         settings.analysis_version,
         settings.generator_version,
         difficulty,
-        override,
+        {**override, "gameplay_mode": effective_mode},
     )
     duration_ms = int(max(1.0, float(analysis.get("duration_ms", 1.0))))
     meter = int(analysis.get("meter", 4))
@@ -361,6 +409,8 @@ def generate_chart(
             attempt_seed,
         )
         quality = validate_chart_quality({"notes": notes, "duration_ms": duration_ms}, effective, difficulty)
+        if effective_mode == "duo_2key":
+            quality.update(_duo_quality_metrics(notes, duration_ms))
         quality["bots"] = simulate_bots({"notes": notes})
         quality["generation_attempt"] = attempt
         if int(quality.get("same_lane_violations", 0)) == 0 and float(quality.get("lane_share_max", 1.0)) <= 0.75:
@@ -370,6 +420,7 @@ def generate_chart(
         "chart_id": f"{digest[:16]}-{difficulty}",
         "song_uuid": str(analysis.get("song_uuid", "")),
         "difficulty": difficulty,
+        "gameplay_mode": effective_mode,
         "generator_version": settings.generator_version,
         "seed": digest,
         "duration_ms": duration_ms,
@@ -408,5 +459,6 @@ def generate_all_charts(
     audio_sha256: str | None = None,
     user_override: dict[str, Any] | None = None,
     settings: ChartGenerationSettings = ChartGenerationSettings(),
+    gameplay_mode: str | None = None,
 ) -> dict[str, dict[str, Any]]:
-    return {difficulty: generate_chart(analysis, difficulty, audio_sha256=audio_sha256, user_override=user_override, settings=settings) for difficulty in DIFFICULTIES}
+    return {difficulty: generate_chart(analysis, difficulty, audio_sha256=audio_sha256, user_override=user_override, settings=settings, gameplay_mode=gameplay_mode) for difficulty in DIFFICULTIES}

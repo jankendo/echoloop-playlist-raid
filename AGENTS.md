@@ -1,6 +1,7 @@
 # ECHOLOOP development rules
 
-- Preserve the product name and the D/F/J/K default lane mapping.
+- Preserve the product name. DUO mode is the default input mapping: F=left and J=right.
+  Keep D/F/J/K available as the optional CLASSIC 4-LANE mapping.
 - Keep the rhythm clock absolute-time based; do not derive note positions from
   accumulated frame deltas.
 - Keep the game playable without a network connection or external AI API.

@@ -1,43 +1,26 @@
 # Troubleshooting
 
-## Godot not found
+## FFmpeg, Deno, or yt-dlp is missing
 
-Install Godot 4.7.1 Standard or pass its executable to each tool with `-GodotPath`.
-The tools accept both the normal GUI binary and the console binary.
+Run tools/install_ytdlp.ps1 -Mode Verify and tools/verify_toolchain.ps1. If a
+managed path is missing, run tools/bootstrap_all.ps1 -Mode Repair. Verify reads
+the active current.json and does not install anything.
 
-## Export templates missing
+## F/J input does not judge a legacy chart
 
-Install the matching Windows Desktop export templates from Godot's editor. The source
-project and `godot/export_presets.cfg` are valid without templates, but an executable
-cannot be honestly reported until the export command succeeds.
+DUO projection is the default. Use SETTINGS > CLASSIC 4-LANE for the original
+D/F/J/K positions, or ensure the chart is loaded through ChartLoader instead of
+reading source lane values directly.
 
-## Python import error
+## YouTube import fails
 
-Run `$env:PYTHONPATH=(Resolve-Path worker/src).Path` in the current PowerShell session,
-or install the editable package with `worker/.venv/Scripts/python.exe -m pip install -e
-worker[dev]`.
+Check the canonical YouTube URL, the Deno path, and the worker status message.
+Credential fields, proxy options, arbitrary headers, file URLs, non-YouTube
+hosts, and traversal paths are rejected by design. No network access is needed
+for the built-in fixture.
 
-## FFmpeg or ffprobe not found
+## Pause or return-to-title behaves unexpectedly
 
-Install a Windows FFmpeg distribution and add its `bin` directory to PATH, or put
-the executables under the project `.tools/` directory. The import screen reports a
-retryable environment error when either executable is missing.
-
-## Beat This! is unavailable
-
-This is not a startup failure. Install the optional `worker[beat]` group and place
-the `final0` checkpoint in the configured model cache, or use the default librosa
-fallback. Models are never downloaded automatically by the game or CI.
-
-## Local song does not appear
-
-Confirm that `user://echoloop-data/songs/<song_uuid>/manifest.json` and the four
-chart files exist. A package is committed only after atomic rename; an incomplete
-temporary directory is ignored by SongLibrary. The original source file is not the
-library index and may be moved independently.
-
-## Corrupted settings
-
-`SaveService` moves a broken settings file to a timestamped `.corrupt` sibling and
-restores defaults. The event is recorded in the JSONL log; no user data is sent outside
-the local `user://` directory.
+Pause stops AudioClock and the audio stream. Return-to-title intentionally does
+not save the current result, but SongPack and settings persist. Use the
+confirmation dialog's CANCEL action to remain in gameplay.

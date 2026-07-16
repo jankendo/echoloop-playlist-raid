@@ -6,7 +6,7 @@ const BACKUP_PATH := "user://settings.json.bak"
 
 func save_settings(values: Dictionary) -> bool:
 	var payload := values.duplicate(true)
-	payload["schema_version"] = 1
+	payload["schema_version"] = 2
 	var json_text := JSON.stringify(payload, "  ")
 	var temporary := "user://settings.json.tmp"
 	var file := FileAccess.open(temporary, FileAccess.WRITE)
@@ -30,7 +30,7 @@ func load_settings(defaults: Dictionary) -> Dictionary:
 		return defaults.duplicate(true)
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if not parsed is Dictionary or int(parsed.get("schema_version", 0)) != 1:
+	if not parsed is Dictionary or int(parsed.get("schema_version", 0)) not in [1, 2]:
 		_quarantine_corrupt()
 		return defaults.duplicate(true)
 	var merged := defaults.duplicate(true)

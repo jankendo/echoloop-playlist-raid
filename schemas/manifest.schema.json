@@ -14,7 +14,33 @@
     "audio_file": {"type": "string", "minLength": 1},
     "chart_file": {"type": "string", "minLength": 1},
     "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "source": {"type": "string"},
+    "source": {
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "properties": {
+            "source_type": {"type": "string"},
+            "extractor": {"type": "string"},
+            "source_id": {"type": "string"},
+            "title": {"type": "string"},
+            "artist": {"type": "string"},
+            "channel": {"type": "string"},
+            "uploader": {"type": "string"},
+            "duration_seconds": {"type": "number", "minimum": 0},
+            "upload_date": {"type": "string"},
+            "webpage_url": {"type": "string"},
+            "thumbnail": {"type": "string"},
+            "availability": {"type": "string"},
+            "live_status": {"type": "string"},
+            "playlist_id": {"type": "string"},
+            "playlist_title": {"type": "string"},
+            "playlist_index": {"type": ["integer", "null"], "minimum": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "audio_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "bpm": {"type": "number", "minimum": 0},
     "artist": {"type": "string"},

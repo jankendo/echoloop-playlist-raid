@@ -11,8 +11,9 @@ func _init() -> void:
 	_test_corruption()
 	_test_session()
 	_test_beat_map()
+	_test_duo_projection()
 	if failures.is_empty():
-		print("ECHOLOOP Godot tests: PASS (7 suites)")
+		print("ECHOLOOP Godot tests: PASS (8 suites)")
 		quit(0)
 	else:
 		for failure in failures:
@@ -70,11 +71,13 @@ func _test_chart() -> void:
 
 func _test_echo() -> void:
 	var echo = load("res://scripts/core/echo_system.gd").new()
-	echo.record_success(0, 0.0, 0.0, 0, "tap", "n1", "PERFECT", 0, "", 16.0, 2.0)
+	echo.record_success(0, 0.0, 0.0, 0, "tap", "n1", "PERFECT", 0, "", 16.0, 2.0, 2)
 	echo.finalize_phrase(0)
 	_check(echo.active_echoes.size() == 1, "echo created at phrase end")
 	_check(echo.replay_events(0, 2.0, 0.0, null, 16.0).is_empty(), "echo does not replay in source phrase")
-	_check(echo.replay_events(1, 2.0, 8000.0, null, 16.0).size() == 1, "echo replays next phrase")
+	var replayed: Array = echo.replay_events(1, 2.0, 8000.0, null, 16.0)
+	_check(replayed.size() == 1, "echo replays next phrase")
+	_check(str(replayed[0].effect) == "VOICE_HEAL", "semantic echo effect")
 	for index in range(1, 5):
 		echo.record_success(index, index * 8000.0, index * 8000.0, index % 4, "tap", "n%d" % index, "GREAT")
 		echo.finalize_phrase(index)
@@ -95,8 +98,8 @@ func _test_session() -> void:
 	var chart: Dictionary = loader.load_chart("res://data/test_chart.json")
 	var session = load("res://scripts/core/game_session.gd").new()
 	_check(session.setup(chart), "session setup")
-	var first: Dictionary = chart.notes[0]
-	var result: Dictionary = session.handle_lane_input(int(first.lane), float(first.time_ms))
+	var first: Dictionary = session.notes[0]
+	var result: Dictionary = session.handle_lane_input(int(first.input_lane), float(first.time_ms))
 	_check(str(result.judgement) != "GHOST", "known note judged")
 	session.advance(8001.0)
 	_check(session.current_phrase == 1, "phrase advances")
@@ -105,6 +108,25 @@ func _test_session() -> void:
 	var runtime: Dictionary = loader.normalize(chart)
 	_check(runtime.has("beat_map"), "v1 chart gets BeatMap")
 	_check(runtime.beat_map.time_to_beat(0.0) == 0.0, "v1 beat map origin")
+
+func _test_duo_projection() -> void:
+	var loader = load("res://scripts/core/chart_loader.gd").new()
+	var chart: Dictionary = loader.load_chart("res://data/test_chart.json")
+	var duo: Dictionary = loader.normalize(chart, "duo_2key")
+	var classic: Dictionary = loader.normalize(chart, "classic_4lane")
+	_check(duo.gameplay_mode == "duo_2key", "duo mode is explicit")
+	_check(duo.notes.all(func(note: Dictionary) -> bool: return int(note.input_lane) in [0, 1]), "duo input lanes are F/J")
+	_check(duo.notes.all(func(note: Dictionary) -> bool: return note.has("semantic_lane")), "semantic lane is preserved")
+	_check(classic.gameplay_mode == "classic_4lane", "classic mode remains available")
+	var session = load("res://scripts/core/game_session.gd").new()
+	_check(session.setup(chart, 0.0, "duo_2key"), "duo session setup")
+	for note in session.notes:
+		if str(note.get("type", "")) == "chord" and Array(note.get("input_lanes", [])).size() == 2:
+			var pending: Dictionary = session.handle_input_lanes([int(note.input_lanes[0])], float(note.time_ms))
+			_check(pending.judgement == "PENDING", "chord first key waits")
+			var chord: Dictionary = session.handle_input_lanes(note.input_lanes, float(note.time_ms))
+			_check(chord.judgement != "GHOST", "F+J chord judged")
+			break
 
 func _test_beat_map() -> void:
 	var beat_map_script = load("res://scripts/core/beat_map.gd")

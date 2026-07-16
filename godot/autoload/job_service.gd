@@ -11,13 +11,34 @@ func start_health_check() -> void:
 	start_job("health_check", {})
 
 func start_local_audio_probe(source_path: String) -> void:
-	start_job("probe_local_audio", {"source_path": source_path, "project_root": ProjectSettings.globalize_path("res://")})
+	start_job("probe_local_audio", {"source_path": source_path, "project_root": _workspace_root()})
 
 func start_local_audio_analysis(source_path: String, title: String = "", artist: String = "", backend: String = "auto") -> void:
-	start_job("analyze_local_audio", {"source_path": source_path, "title": title, "artist": artist, "backend": backend, "project_root": ProjectSettings.globalize_path("res://"), "store_root": ProjectSettings.globalize_path("user://echoloop-data")})
+	start_job("analyze_local_audio", {"source_path": source_path, "title": title, "artist": artist, "backend": backend, "project_root": _workspace_root(), "store_root": ProjectSettings.globalize_path("user://echoloop-data")})
 
 func start_chart_regeneration(song_uuid: String, store_root: String) -> void:
 	start_job("regenerate_charts", {"song_uuid": song_uuid, "store_root": store_root})
+
+func start_youtube_probe(url: String) -> void:
+	start_job("probe_youtube", _youtube_payload(url))
+
+func start_youtube_playlist_probe(url: String) -> void:
+	start_job("probe_youtube_playlist", _youtube_payload(url))
+
+func start_youtube_import(url: String) -> void:
+	var payload := _youtube_payload(url)
+	payload["store_root"] = ProjectSettings.globalize_path("user://echoloop-data")
+	start_job("import_youtube", payload)
+
+func start_youtube_batch_import(url: String, entries: Array, sort_mode: String = "index") -> void:
+	var payload := _youtube_payload(url)
+	payload["entries"] = entries
+	payload["sort"] = sort_mode
+	payload["store_root"] = ProjectSettings.globalize_path("user://echoloop-data")
+	start_job("import_youtube_batch", payload)
+
+func _youtube_payload(url: String) -> Dictionary:
+	return {"url": url, "project_root": _workspace_root()}
 
 func cancel_current_job() -> void:
 	if _current_cancel_file.is_empty():
@@ -44,9 +65,24 @@ func start_job(job_type: String, payload: Dictionary) -> void:
 		return
 	file.store_string(JSON.stringify(request, "  ") + "\n")
 	file.close()
+	var python_path := _worker_python()
 	var args := PackedStringArray(["-m", "echoloop_worker.cli", "--request", ProjectSettings.globalize_path(request_file), "--status", ProjectSettings.globalize_path(status_file), "--log", ProjectSettings.globalize_path(log_file)])
-	var pid := OS.create_process("python", args, false)
+	var pid := OS.create_process(python_path, args, false)
 	_set_status({"schema_version": request.schema_version, "state": "running", "job_type": job_type, "message": "job started", "pid": pid, "status_path": status_file, "cancel_file": _current_cancel_file})
+
+func _worker_python() -> String:
+	var current_path := _workspace_root().path_join(".runtime/current.json")
+	var file := FileAccess.open(current_path, FileAccess.READ)
+	if file != null:
+		var parsed: Variant = JSON.parse_string(file.get_as_text())
+		if parsed is Dictionary:
+			var python: String = str(parsed.get("python", {}).get("Python", ""))
+			if not python.is_empty() and FileAccess.file_exists(python):
+				return python
+	return "python"
+
+func _workspace_root() -> String:
+	return ProjectSettings.globalize_path("res://..").simplify_path()
 
 func _process(_delta: float) -> void:
 	if str(last_status.get("state", "")) != "running":
